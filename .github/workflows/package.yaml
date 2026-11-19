@@ -67,11 +67,11 @@ jobs:
           cd "$RUNNER_TEMP"
           python - <<'PY'
           import os
-          import browser_use
-          from browser_use import Agent, Browser, Tools, ActionResult, ChatOpenAI, ChatBrowserUse
-          import browser_use.agent.loop, browser_use.repl.worker, browser_use.ax, browser_use.cli, browser_use.mcp.cli_mcp
+          import browse_dev
+          from browse_dev import Agent, Browser, Tools, ActionResult, ChatOpenAI, ChatBrowseDev
+          import browse_dev.agent.loop, browse_dev.repl.worker, browse_dev.ax, browse_dev.cli, browse_dev.mcp.cli_mcp
           checkout = os.path.normcase(os.path.realpath(os.environ['GITHUB_WORKSPACE']))
-          assert not os.path.normcase(os.path.realpath(browser_use.__file__)).startswith(checkout), browser_use.__file__
-          print('installed wheel OK:', browser_use.__file__)
+          assert not os.path.normcase(os.path.realpath(browse_dev.__file__)).startswith(checkout), browse_dev.__file__
+          print('installed wheel OK:', browse_dev.__file__)
           PY
-          browser-use --help > /dev/null
+          browse-dev --help > /dev/null

@@ -18,8 +18,8 @@ from pydantic_ai.messages import (
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.usage import RequestUsage
 
-from browser_use.agent.loop import Session, build_agent, run
-from browser_use.repl.session import scoped_secrets
+from browse_dev.agent.loop import Session, build_agent, run
+from browse_dev.repl.session import scoped_secrets
 
 PNG = base64.b64encode(b'\x89PNG-fake-image-bytes').decode()
 
@@ -125,7 +125,7 @@ def test_size_is_bu_pi_context_chars_of_its_messages():
 	and tool result details are left out, an image is {type: image}, and a CJK character counts 1 (no \\uXXXX)."""
 	from datetime import datetime, timezone
 
-	from browser_use.agent.loop import _chars, _pi
+	from browse_dev.agent.loop import _chars, _pi
 
 	t = datetime(2026, 11, 7, tzinfo=timezone.utc)
 	ms = int(t.timestamp() * 1000)
@@ -169,7 +169,7 @@ def test_retries_count_toward_the_size_as_bu_pi_counts_them():
 	out of the size and a rejected call counted as a success."""
 	from pydantic_ai.messages import RetryFeedbackPart, RetryInfo
 
-	from browser_use.agent.loop import _pi
+	from browse_dev.agent.loop import _pi
 
 	retry = RetryInfo(cause='model_retry', attempt=1, max_retries=5)
 	feedback = RetryFeedbackPart('reply ' * 500, retry=retry)
@@ -202,8 +202,8 @@ async def test_a_short_early_history_does_not_wedge_later_compaction(tmp_path):
 
 
 def test_agent_passes_max_context_chars_to_compaction():
-	from browser_use import Agent, Browser
-	from browser_use.agent.loop import Compaction
+	from browse_dev import Agent, Browser
+	from browse_dev.agent.loop import Compaction
 
 	agent = Agent(
 		'task', FunctionModel(lambda m, i: ModelResponse(parts=[])), browser=Browser(local=True), max_context_chars=800_000
@@ -217,7 +217,7 @@ def test_agent_passes_max_context_chars_to_compaction():
 async def test_archive_is_written_redacted_and_without_images(tmp_path):
 	fn, agent_requests, _ = scripted(big={3})
 	await go(tmp_path, fn, compact_at_tokens=4700)
-	(archive,) = (tmp_path / '.browser-use' / 'context').glob('*.json')
+	(archive,) = (tmp_path / '.browse-dev' / 'context').glob('*.json')
 	assert json.dumps(str(archive)) in checkpoint_text(agent_requests[3])
 	raw = archive.read_text()
 	data = json.loads(raw)
@@ -229,9 +229,9 @@ async def test_archive_is_written_redacted_and_without_images(tmp_path):
 
 async def test_summarizer_failure_keeps_the_history_and_is_tried_again(tmp_path, caplog, monkeypatch):
 	"""A failure kept compaction off for the rest of the run; bu-pi tries again on the next request."""
-	monkeypatch.setattr(logging.getLogger('browser_use'), 'propagate', True)  # caplog listens on the root logger
+	monkeypatch.setattr(logging.getLogger('browse_dev'), 'propagate', True)  # caplog listens on the root logger
 	fn, agent_requests, summarizer_requests = scripted(big={3, 4, 5}, fail=True)  # past the threshold from request 3 on
-	with caplog.at_level(logging.WARNING, logger='browser_use.agent.loop'):
+	with caplog.at_level(logging.WARNING, logger='browse_dev.agent.loop'):
 		result = await go(tmp_path, fn, compact_at_tokens=4700)
 	assert result.status == 'completed' and result.output == 'done', result.error
 	assert len(summarizer_requests) == 3 and not any(map(checkpoint_text, agent_requests))
@@ -242,7 +242,7 @@ async def test_summarizer_failure_keeps_the_history_and_is_tried_again(tmp_path,
 
 
 async def test_a_context_window_error_compacts_once_and_sends_the_request_again(tmp_path):
-	"""Browser Use Pi (agent.ts overflow recovery): a provider that rejects the request as over its context window gets
+	"""Browse Dev Pi (agent.ts overflow recovery): a provider that rejects the request as over its context window gets
 	a forced compaction and the same request again; 1.0 ended the run with the error. A second rejection in the same
 	step ends it."""
 	from pydantic_ai.exceptions import ModelContextWindowExceededError
@@ -275,7 +275,7 @@ async def test_a_context_window_error_compacts_once_and_sends_the_request_again(
 
 
 def test_every_model_without_server_side_compaction_compacts():
-	from browser_use.agent.loop import Compaction
+	from browse_dev.agent.loop import Compaction
 
 	for model in ('openai-chat:deepseek-chat', 'anthropic:claude-sonnet-4-5', 'google-gla:gemini-2.5-flash'):
 		capabilities = build_agent(model)._root_capability.capabilities
@@ -285,7 +285,7 @@ def test_every_model_without_server_side_compaction_compacts():
 def test_size_and_archive_count_only_message_content():
 	"""bu-pi's archive keeps role, tool name and call id, content or arguments: no usage, ids, timestamps or provider
 	details. Only real images become the note; tool data that looks like one, or has an instructions key, stays."""
-	from browser_use.agent.loop import _plain
+	from browse_dev.agent.loop import _plain
 
 	messages = [
 		ModelRequest(parts=[UserPromptPart(['look', BinaryContent(b'png', media_type='image/png')])], instructions='SYSTEM'),
@@ -324,8 +324,8 @@ async def test_follow_up_run_keeps_sending_the_checkpoint(tmp_path, monkeypatch)
 	everything the first run had compacted (bu-pi saves the projected history)."""
 	from functools import partial
 
-	import browser_use.agent.service as service
-	from browser_use import Agent, Browser
+	import browse_dev.agent.service as service
+	from browse_dev import Agent, Browser
 
 	async def start(self):
 		return {}

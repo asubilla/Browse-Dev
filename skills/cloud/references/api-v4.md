@@ -13,7 +13,7 @@ is the persistent filesystem that can be reused across sessions.
 
 Eligible new Google, GitHub, or Microsoft signups receive a one-time $1 Cloud credit. No credit card is required. Email/password signups are not eligible; the credit does not renew. Start with the default V4 model (`gpt-5.6-luna`); paid-only models require a top-up. See [pricing](https://browser-use.com/pricing.md) for current eligibility and rates.
 
-Install or upgrade `browser-use-sdk` to 3.11.3 or newer. Read `BROWSER_USE_API_KEY` from the environment; do not embed it in source or a prompt.
+Install or upgrade `browser-use-sdk` to 3.11.3 or newer. Read `BROWSE_DEV_API_KEY` from the environment; do not embed it in source or a prompt.
 
 ## First Run
 
@@ -56,15 +56,15 @@ only after the status is `completed`, `failed`, or `cancelled`:
 
 ```bash
 curl -X POST https://api.browser-use.com/api/v4/runs \
-  -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY" \
+  -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"task":"Find the top Hacker News story"}'
 
 curl https://api.browser-use.com/api/v4/runs/RUN_ID/status \
-  -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY"
+  -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY"
 
 curl https://api.browser-use.com/api/v4/runs/RUN_ID \
-  -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY"
+  -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY"
 ```
 
 Only `completed` means success. V4 returns a result string; parse and validate it in your application. A polling timeout does not cancel the remote run: use `client.runs.cancel` if abandoning it. Do not blindly retry an ambiguous create request, which could start duplicate paid work.
@@ -126,7 +126,7 @@ before downloading.
 The v4 REST API can create a browser for direct CDP control:
 
 1. `POST /browsers` returns the browser `id` (its session ID) and `cdpUrl`.
-2. Connect Browser Use, Playwright, Puppeteer, or Selenium to `cdpUrl`.
+2. Connect Browse Dev, Playwright, Puppeteer, or Selenium to `cdpUrl`.
 3. `PATCH /browsers/{session_id}` with `{"action":"stop"}` stops the browser;
    replace `session_id` with the returned `id`.
 

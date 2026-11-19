@@ -10,10 +10,10 @@ from pathlib import Path
 
 import pytest
 
-import browser_use
-from browser_use.repl import Repl, redact, worker_env
+import browse_dev
+from browse_dev.repl import Repl, redact, worker_env
 
-PACKAGE = Path(browser_use.__file__).parent
+PACKAGE = Path(browse_dev.__file__).parent
 # A prompt-injected cell digging the values out of type_secret's closure.
 DIG = (  # helpers are wrapped for telemetry counts (worker._counted); an injected cell can unwrap them too
 	'import inspect\nv = {n: x for n, x, _ in [c.cell_contents for c in inspect.unwrap(type_secret).__closure__ '
@@ -91,7 +91,7 @@ async def test_close_and_a_timeout_restart_release_the_worker_socket(tmp_path):
 async def test_worker_env_has_no_credentials(tmp_path, monkeypatch):
 	monkeypatch.setenv('FAKE_API_KEY', 'planted-fake-value-1')
 	monkeypatch.setenv('OPENAI_API_KEY', 'planted-fake-value-2')
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'planted-fake-value-3')
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'planted-fake-value-3')
 	monkeypatch.setenv('GITHUB_TOKEN', 'planted-fake-value-4')
 	monkeypatch.setenv('BU_CDP_WS', 'ws://example.invalid/?token=planted-fake-value-5')
 	monkeypatch.setenv('BH_RUNTIME_DIR_SHARED', '0')
@@ -263,7 +263,7 @@ async def test_worker_never_loads_dotenv(tmp_path):
 	repl = Repl(tmp_path)
 	try:
 		code = (
-			"import os, sys\nmods = ('browser_use.agent.service', 'browser_use.browser.browser', 'browser_use.telemetry.service')\n"
+			"import os, sys\nmods = ('browse_dev.agent.service', 'browse_dev.browser.browser', 'browse_dev.telemetry.service')\n"
 			"print([m for m in mods if m in sys.modules], os.environ.get('DOTENV_PROBE'))"
 		)
 		r = await repl.call('exec', code, 30)
@@ -323,7 +323,7 @@ async def test_interrupted_cell_never_writes_a_secret_to_disk(tmp_path):
 async def test_output_between_cells_never_writes_a_secret_to_disk(tmp_path):
 	"""Live: a thread a cell left running printed the value after the cell ended; fd 1 was worker.log again, raw."""
 	repl = Repl(tmp_path, secrets={'pw': 'hunter2-Zq9'})
-	log = tmp_path / '.browser-use' / 'worker.log'
+	log = tmp_path / '.browse-dev' / 'worker.log'
 	try:
 		code = DIG + (
 			'import os, threading, time, warnings\n'
@@ -402,7 +402,7 @@ async def test_ordinary_base64_is_not_redacted_by_a_short_secret(tmp_path):
 
 async def test_checkpoints_and_partial_results_are_redacted(tmp_path):
 	"""Roast C13: checkpointed data holding a secret was saved raw and returned through .partial / timeout text."""
-	from browser_use.agent.loop import Session
+	from browse_dev.agent.loop import Session
 
 	repl = Repl(tmp_path, secrets={'pw': 'hunter2-Zq9'})
 	try:
@@ -417,7 +417,7 @@ async def test_checkpoints_and_partial_results_are_redacted(tmp_path):
 
 def test_corrupt_partial_json_is_ignored(tmp_path):
 	"""Roast C12: a partial.json truncated by a kill made the timeout path raise instead of returning."""
-	from browser_use.agent.loop import Session
+	from browse_dev.agent.loop import Session
 
 	repl = Repl(tmp_path)
 	repl.state.mkdir(parents=True)
@@ -465,7 +465,7 @@ async def test_cell_traceback_keeps_cell_and_workspace_frames_but_no_installed_p
 		await repl.close()
 	error = r['error']
 	assert error.startswith('Traceback') and '<cell' in error and 'mymod.py' in error, error
-	assert '/urllib/' not in error and '/http/' not in error and 'browser_use' not in error, error
+	assert '/urllib/' not in error and '/http/' not in error and 'browse_dev' not in error, error
 	assert error.splitlines()[-1].startswith('urllib.error.URLError'), error
 
 
@@ -484,7 +484,7 @@ async def test_cell_traceback_keeps_cell_and_workspace_frames_but_no_installed_p
 	],
 )
 def test_domain_matches(url, pattern, ok):
-	from browser_use.repl.session import domain_matches
+	from browse_dev.repl.session import domain_matches
 
 	assert domain_matches(url, pattern) is ok
 
@@ -668,7 +668,7 @@ async def test_structured_result_never_holds_a_secret(tmp_path, deliver):
 	from conftest import script
 	from pydantic import BaseModel
 
-	from browser_use.agent.loop import Session, build_agent, run
+	from browse_dev.agent.loop import Session, build_agent, run
 
 	class Creds(BaseModel):
 		note: str
@@ -756,7 +756,7 @@ def _tab(capture_hangs: bool):
 def test_hidden_tab_that_captures_is_never_activated():
 	"""Roast r7 F1: screenshot() activated every hidden tab, switching the user's visible tab in local mode, although
 	only Linux headless needs it (a hidden tab captures fine on macOS and in headful Chrome)."""
-	from browser_use.repl.capture import capture
+	from browse_dev.repl.capture import capture
 
 	raw_cdp, calls, state = _tab(capture_hangs=False)
 	assert capture(raw_cdp, lambda: {'targetId': 'T'}, format='jpeg')['data']
@@ -766,7 +766,7 @@ def test_hidden_tab_that_captures_is_never_activated():
 
 def test_hidden_tab_is_activated_only_after_its_capture_times_out():
 	"""Linux headless renders no frames for a hidden tab: its capture hung 60s. A short try first, then activate."""
-	from browser_use.repl.capture import HIDDEN_CAPTURE_TRY_S, SCREENSHOT_TIMEOUT_S, capture
+	from browse_dev.repl.capture import HIDDEN_CAPTURE_TRY_S, SCREENSHOT_TIMEOUT_S, capture
 
 	raw_cdp, calls, state = _tab(capture_hangs=True)
 	activated = []
@@ -783,7 +783,7 @@ def test_hidden_tab_is_activated_only_after_its_capture_times_out():
 def test_hidden_cloud_tab_is_activated_before_its_capture():
 	"""browser-features #3: a cloud browser never answers a hidden tab's capture, so every first screenshot and every
 	one after switch_tab() waited the full 10 s first try. Ours and hidden: activate, then capture."""
-	from browser_use.repl.capture import SCREENSHOT_TIMEOUT_S, capture
+	from browse_dev.repl.capture import SCREENSHOT_TIMEOUT_S, capture
 
 	raw_cdp, calls, state = _tab(capture_hangs=True)
 	assert capture(raw_cdp, lambda: {'targetId': 'T'}, activate=True, format='jpeg')['data']
@@ -800,7 +800,7 @@ def test_cli_mcp_screenshot_activates_a_hidden_tab_whose_capture_hangs(monkeypat
 	A cloud browser's hidden tab is activated without the 10 s try, as the Agent's is (cloud CLI: 10.6 s -> 0.4 s)."""
 	from browser_harness import admin, helpers
 
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	raw_cdp, calls, state = _tab(capture_hangs=True)
 	monkeypatch.setattr(helpers, 'cdp', raw_cdp)
@@ -817,7 +817,7 @@ def test_cli_mcp_screenshot_activates_a_hidden_tab_whose_capture_hangs(monkeypat
 PARENT = """
 import asyncio, sys
 from pathlib import Path
-from browser_use.repl import Repl
+from browse_dev.repl import Repl
 
 ws = Path(sys.argv[1])
 beat = "import time\\nfor _ in range(600):\\n    open({!r}, 'a').write('.')\\n    time.sleep(0.05)"
@@ -846,7 +846,7 @@ def test_worker_dies_with_its_parent_mid_cell(tmp_path, how):
 			if all(b.exists() for b in beats):
 				break
 			time.sleep(0.05)
-		assert all(b.exists() for b in beats), (tmp_path / '.browser-use' / 'worker.log').read_text()
+		assert all(b.exists() for b in beats), (tmp_path / '.browse-dev' / 'worker.log').read_text()
 	finally:
 		getattr(parent, how)()  # POSIX: SIGTERM / SIGKILL; Windows: TerminateProcess
 		parent.wait()

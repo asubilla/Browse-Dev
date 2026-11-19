@@ -1,6 +1,6 @@
 [project]
-name = "browser-use"
-description = "Browser agent on Pydantic AI: one persistent Python REPL on raw CDP, cloud or local Chrome"
+name = "browse-dev"
+description = "Browse Dev - browser agent on Pydantic AI: one persistent Python REPL on raw CDP, cloud or local Chrome"
 authors = [{ name = "Gregor Zunic" }]
 version = "1.0.6"
 readme = "README.md"
@@ -31,28 +31,31 @@ dependencies = [
 # genai-prices: cost per run (imported directly). pydantic-ai-slim[openai,anthropic,google]: agent loop (Anthropic and Google built in so model strings just work) (keep it below 3 when bumping the pin: the engine uses its capabilities API); OpenAI Responses (official API, gateway) and chat completions (base_url)
 # pillow: the REPL worker validates and downsizes images before they reach the model
 # python-dotenv: .env loading; uuid7: the anonymous telemetry device id (telemetry is sent with the standard library)
-# mcp: `browser-use --cli-mcp` (the biggest CLI surface) must work without extras
+# mcp: `browse-dev --cli-mcp` (the biggest CLI surface) must work without extras
 # google-genai: keep the pin below 3 when bumping; 3.0.0 calls the Gemini API on v1, which rejects tools, so every Gemini run fails on its first request.
 # Pydantic AI caps it at <3 the same way (pydantic/pydantic-ai#12700, unreleased on 11-08); lift with pydantic-ai#12732.
 
 [project.optional-dependencies]
-anthropic = []  # kept so `browser-use[anthropic]` installs resolve; Anthropic is a core dependency
+anthropic = []  # kept so `browse-dev[anthropic]` installs resolve; Anthropic is a core dependency
 google = []  # same for Google
-mcp = []  # kept so existing `browser-use[mcp]` installs resolve; mcp is a core dependency
-cli = []  # same for `browser-use[cli]` (0.x docs, install-script.yml); the CLI is part of the package
-all = ["browser-use[anthropic,google]"]
+mcp = []  # kept so existing `browse-dev[mcp]` installs resolve; mcp is a core dependency
+cli = []  # same for `browse-dev[cli]` (0.x docs, install-script.yml); the CLI is part of the package
+all = ["browse-dev[anthropic,google]"]
 
 [project.urls]
-Homepage = "https://browser-use.com"
+Homepage = "https://github.com/asubilla/Browse-Dev"
 Documentation = "https://docs.browser-use.com"
-Repository = "https://github.com/browser-use/browser-use"
+Repository = "https://github.com/asubilla/Browse-Dev"
 "Terms of Service" = "https://browser-use.com/legal/terms-of-service"
 "Privacy Policy" = "https://browser-use.com/privacy/"
 
 [project.scripts]
-browser-use = "browser_use.cli:main"  # Browser Use CLI for agents
-browseruse = "browser_use.cli:main"  # Alias for browser-use
-browser-use-tui = "browser_use.cli:browser_use_tui_main"  # Deprecated alias for browser-use
+browse-dev = "browse_dev.cli:main"  # Browse Dev CLI for agents
+browse-dev-tui = "browse_dev.cli:browse_dev_tui_main"  # Deprecated alias kept for install compatibility
+browsedev = "browse_dev.cli:main"  # Alias for browse-dev
+browser-use = "browse_dev.cli:main"  # Compatibility alias for the upstream CLI name
+browser-use-tui = "browse_dev.cli:browse_dev_tui_main"  # Deprecated upstream alias for browser-use
+browseruse = "browse_dev.cli:main"  # Alias for browser-use
 
 [build-system]
 requires = ["hatchling==1.32.0"]
@@ -91,7 +94,7 @@ skip-magic-trailing-comma = false
 [tool.pyright]
 typeCheckingMode = "basic"
 pythonVersion = "3.11"
-include = ["browser_use", "examples"]  # tests use Pydantic AI test internals
+include = ["browse_dev", "examples"]  # tests use Pydantic AI test internals
 exclude = [".venv/", ".venv*/", ".git/", "__pycache__/", "**/site-packages/"]
 venvPath = "."
 venv = ".venv"
@@ -100,9 +103,9 @@ reportMissingTypeStubs = false
 
 [tool.hatch.build]
 include = [
-    "browser_use/**/*.py",
-    "browser_use/skills/**/*.md",
-    "browser_use/py.typed",
+    "browse_dev/**/*.py",
+    "browse_dev/skills/**/*.md",
+    "browse_dev/py.typed",
 ]
 
 [tool.pytest.ini_options]

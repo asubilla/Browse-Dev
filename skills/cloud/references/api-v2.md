@@ -33,7 +33,7 @@ All endpoints require the `X-Browser-Use-API-Key` header.
 
 ```bash
 curl -X POST https://api.browser-use.com/api/v2/tasks \
-  -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY" \
+  -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"task": "Find the top Hacker News post and return title and URL"}'
 ```
@@ -44,14 +44,14 @@ Response: `{"id": "<task-id>", "sessionId": "<session-id>"}`
 
 ```bash
 curl https://api.browser-use.com/api/v2/tasks/<task-id>/status \
-  -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY"
+  -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY"
 ```
 
 ### Get session live URL
 
 ```bash
 curl https://api.browser-use.com/api/v2/sessions/<session-id> \
-  -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY"
+  -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY"
 ```
 
 Response includes `liveUrl` — open it to watch the agent work.
@@ -60,7 +60,7 @@ Response includes `liveUrl` — open it to watch the agent work.
 
 ```bash
 curl -X POST https://api.browser-use.com/api/v2/browsers \
-  -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY" \
+  -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"proxyCountryCode": "us", "timeout": 30}'
 ```
@@ -71,7 +71,7 @@ Response includes `cdpUrl` (WebSocket) and `liveUrl`.
 
 ```bash
 curl -X PATCH https://api.browser-use.com/api/v2/sessions/<session-id> \
-  -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY" \
+  -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"action": "stop"}'
 ```
@@ -81,7 +81,7 @@ curl -X PATCH https://api.browser-use.com/api/v2/sessions/<session-id> \
 ```bash
 # 1. Get presigned URL
 curl -X POST https://api.browser-use.com/api/v2/files/sessions/<session-id>/presigned-url \
-  -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY" \
+  -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"fileName": "input.pdf", "contentType": "application/pdf", "sizeBytes": 102400}'
 
@@ -113,7 +113,7 @@ Response: `{ items: TaskItemView[], totalItems, pageNumber, pageSize }`
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
 | task | string | **yes** | Task prompt (1-50,000 chars) |
-| llm | SupportedLLMs | no | Model (default: browser-use-llm) |
+| llm | SupportedLLMs | no | Model (default: browse-dev-llm) |
 | startUrl | string | no | Initial URL (saves steps) |
 | maxSteps | integer | no | Max agent steps (default: 100) |
 | structuredOutput | string | no | JSON schema string |
@@ -302,7 +302,7 @@ Response includes: `{ items: [...], totalItems, pageNumber, pageSize }`
 | SessionStatus | `active`, `stopped` |
 | BrowserSessionStatus | `active`, `stopped` |
 | ProxyCountryCode | `us`, `uk`, `fr`, `it`, `jp`, `au`, `de`, `fi`, `ca`, `in` (+185 more) |
-| SupportedLLMs | `browser-use-llm`, `gpt-4.1`, `gpt-4.1-mini`, `o4-mini`, `o3`, `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-flash-latest`, `gemini-flash-lite-latest`, `gemini-3-flash-preview`, `gemini-3.1-flash-lite`, `claude-sonnet-4-20250514`, `gpt-4o`, `gpt-4o-mini`, `llama-4-maverick-17b-128e-instruct`, `claude-3-7-sonnet-20250219` |
+| SupportedLLMs | `browse-dev-llm`, `gpt-4.1`, `gpt-4.1-mini`, `o4-mini`, `o3`, `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-flash-latest`, `gemini-flash-lite-latest`, `gemini-3-flash-preview`, `gemini-3.1-flash-lite`, `claude-sonnet-4-20250514`, `gpt-4o`, `gpt-4o-mini`, `llama-4-maverick-17b-128e-instruct`, `claude-3-7-sonnet-20250219` |
 | UploadContentType | `image/jpg`, `image/jpeg`, `image/png`, `image/gif`, `image/webp`, `image/svg+xml`, `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/vnd.ms-excel`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `text/plain`, `text/csv`, `text/markdown` |
 
 ## Response Schemas

@@ -1,18 +1,18 @@
 # syntax=docker/dockerfile:1
 # check=skip=SecretsUsedInArgOrEnv
 
-# This is the Dockerfile for browser-use, it bundles the following dependencies:
-#     python3, chromium, browser-use and its dependencies.
-# browser-use 1.0: Agent(..., browser=Browser('chromium')) launches the container's chromium headless, or use the
+# This is the Dockerfile for browse-dev, it bundles the following dependencies:
+#     python3, chromium, browse-dev and its dependencies.
+# browse-dev 1.0: Agent(..., browser=Browser('chromium')) launches the container's chromium headless, or use the
 # default cloud browser.
 # Usage:
-#     git clone https://github.com/browser-use/browser-use.git && cd browser-use
-#     docker build . -t browseruse --no-cache
-#     docker run -v "$PWD/data":/data browseruse
-#     docker run -v "$PWD/data":/data browseruse --version
+#     git clone https://github.com/asubilla/Browse-Dev.git && cd browse-dev
+#     docker build . -t browsedev --no-cache
+#     docker run -v "$PWD/data":/data browsedev
+#     docker run -v "$PWD/data":/data browsedev --version
 # Multi-arch build:
 #     docker buildx create --use
-#     docker buildx build . --platform=linux/amd64,linux/arm64--push -t browseruse/browseruse:some-tag
+#     docker buildx build . --platform=linux/amd64,linux/arm64--push -t browsedev/browsedev:some-tag
 #
 # Read more: https://docs.browser-use.com
 
@@ -21,22 +21,22 @@
 
 FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
 
-LABEL name="browseruse" \
+LABEL name="browsedev" \
     maintainer="Nick Sweeting <dockerfile@browser-use.com>" \
     description="Make websites accessible for AI agents. Automate tasks online with ease." \
-    homepage="https://github.com/browser-use/browser-use" \
+    homepage="https://github.com/asubilla/Browse-Dev" \
     documentation="https://docs.browser-use.com" \
-    org.opencontainers.image.title="browseruse" \
-    org.opencontainers.image.vendor="browseruse" \
+    org.opencontainers.image.title="browsedev" \
+    org.opencontainers.image.vendor="browsedev" \
     org.opencontainers.image.description="Make websites accessible for AI agents. Automate tasks online with ease." \
-    org.opencontainers.image.source="https://github.com/browser-use/browser-use" \
+    org.opencontainers.image.source="https://github.com/asubilla/Browse-Dev" \
     com.docker.image.source.entrypoint="Dockerfile" \
     com.docker.desktop.extension.api.version=">= 1.4.7" \
     com.docker.desktop.extension.icon="https://avatars.githubusercontent.com/u/192012301?s=200&v=4" \
     com.docker.extension.publisher-url="https://browser-use.com" \
     com.docker.extension.screenshots='[{"alt": "Screenshot of CLI splashscreen", "url": "https://github.com/user-attachments/assets/3606d851-deb1-439e-ad90-774e7960ded8"}, {"alt": "Screenshot of CLI running", "url": "https://github.com/user-attachments/assets/d018b115-95a4-4ac5-8259-b750bc5f56ad"}]' \
     com.docker.extension.detailed-description='See here for detailed documentation: https://docs.browser-use.com' \
-    com.docker.extension.changelog='See here for release notes: https://github.com/browser-use/browser-use/releases' \
+    com.docker.extension.changelog='See here for release notes: https://github.com/asubilla/Browse-Dev/releases' \
     com.docker.extension.categories='web,utility-tools,ai'
 
 ARG TARGETPLATFORM
@@ -64,7 +64,7 @@ ENV TZ=UTC \
     IN_DOCKER=True
 
 # User config
-ENV BROWSERUSE_USER="browseruse" \
+ENV BROWSERUSE_USER="browsedev" \
     DEFAULT_PUID=911 \
     DEFAULT_PGID=911
 
@@ -84,7 +84,7 @@ RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "1";' > /etc/apt/apt.conf.d
     && rm -f /etc/apt/apt.conf.d/docker-clean
 
 # Print debug info about build and save it to disk, for human eyes only, not used by anything else
-RUN (echo "[i] Docker build for Browser Use $(cat /VERSION.txt) starting..." \
+RUN (echo "[i] Docker build for Browse Dev $(cat /VERSION.txt) starting..." \
     && echo "PLATFORM=${TARGETPLATFORM} ARCH=$(uname -m) ($(uname -s) ${TARGETARCH} ${TARGETVARIANT})" \
     && echo "BUILD_START_TIME=$(date +"%Y-%m-%d %H:%M:%S %s") TZ=${TZ} LANG=${LANG}" \
     && echo \
@@ -100,7 +100,7 @@ RUN (echo "[i] Docker build for Browser Use $(cat /VERSION.txt) starting..." \
     && echo -e '\n\n' \
     ) | tee -a /VERSION.txt
 
-# Create non-privileged user for browseruse and chrome
+# Create non-privileged user for browsedev and chrome
 RUN echo "[*] Setting up $BROWSERUSE_USER user uid=${DEFAULT_PUID}..." \
     && groupadd --system $BROWSERUSE_USER \
     && useradd --system --create-home --gid $BROWSERUSE_USER --groups audio,video $BROWSERUSE_USER \
@@ -109,7 +109,7 @@ RUN echo "[*] Setting up $BROWSERUSE_USER user uid=${DEFAULT_PUID}..." \
     && mkdir -p /data \
     && mkdir -p /home/$BROWSERUSE_USER/.config \
     && chown -R $BROWSERUSE_USER:$BROWSERUSE_USER /home/$BROWSERUSE_USER \
-    && ln -s $DATA_DIR /home/$BROWSERUSE_USER/.config/browseruse \
+    && ln -s $DATA_DIR /home/$BROWSERUSE_USER/.config/browsedev \
     && echo -e "\nBROWSERUSE_USER=$BROWSERUSE_USER PUID=$(id -u $BROWSERUSE_USER) PGID=$(id -g $BROWSERUSE_USER)\n\n" \
     | tee -a /VERSION.txt
     # DEFAULT_PUID and DEFAULT_PID are overridden by PUID and PGID in /bin/docker_entrypoint.sh at runtime
@@ -177,21 +177,21 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-$TARGETARCH$T
     ) | tee -a /VERSION.txt
 
 RUN --mount=type=cache,target=/root/.cache,sharing=locked,id=cache-$TARGETARCH$TARGETVARIANT \
-     echo "[+] Installing browser-use pip sub-dependencies..." \
+     echo "[+] Installing browse-dev pip sub-dependencies..." \
      && ( \
         uv sync --all-extras --no-dev --no-install-project \
         && echo -e '\n\n' \
      ) | tee -a /VERSION.txt
 
-# Copy the rest of the browser-use codebase
+# Copy the rest of the browse-dev codebase
 COPY . /app
 
-# Install the browser-use package and all of its optional dependencies
+# Install the browse-dev package and all of its optional dependencies
 RUN --mount=type=cache,target=/root/.cache,sharing=locked,id=cache-$TARGETARCH$TARGETVARIANT \
-     echo "[+] Installing browser-use pip library from source..." \
+     echo "[+] Installing browse-dev pip library from source..." \
      && ( \
         uv sync --all-extras --locked --no-dev \
-        && python -c "import browser_use; print('browser-use installed successfully')" \
+        && python -c "import browse_dev; print('browse-dev installed successfully')" \
         && echo -e '\n\n' \
      ) | tee -a /VERSION.txt
 
@@ -212,4 +212,4 @@ EXPOSE 9222
 # HEALTHCHECK --interval=30s --timeout=20s --retries=15 \
 #     CMD curl --silent 'http://localhost:8000/health/' | grep -q 'OK'
 
-ENTRYPOINT ["browser-use"]
+ENTRYPOINT ["browse-dev"]

@@ -15,7 +15,7 @@ Add individual browser actions to your existing agent's tool set. Your agent sta
 
 ## When to Use This Pattern
 
-Your agent already has tools (search, code execution, file I/O, etc.) and its own reasoning loop. You want to add browser capabilities — navigate, click, type, extract — as tools your agent can call. You don't want to hand off to browser-use's Agent; your agent makes the decisions.
+Your agent already has tools (search, code execution, file I/O, etc.) and its own reasoning loop. You want to add browser capabilities — navigate, click, type, extract — as tools your agent can call. You don't want to hand off to browse-dev's Agent; your agent makes the decisions.
 
 **Use tools integration when:**
 - Your agent needs action-by-action browser control
@@ -42,18 +42,18 @@ Your agent already has tools (search, code execution, file I/O, etc.) and its ow
 
 **For:** Claude Code, Codex, OpenCode, Cline, Windsurf, Cursor background agents, Hermes, OpenClaw — any coding agent running in a VM/container with terminal access.
 
-**Setup:** Install the CLI and load the browser-use SKILL.md into the agent's context. CLI 3.0 runs Python from stdin. Browser helpers are already imported, and the browser stays alive between calls.
+**Setup:** Install the CLI and load the browse-dev SKILL.md into the agent's context. CLI 3.0 runs Python from stdin. Browser helpers are already imported, and the browser stays alive between calls.
 
 ```bash
-uv pip install 'browser-use[cli]'
+uv pip install 'browse-dev[cli]'
 ```
 
-For Browser Use Cloud, authenticate once and start a named remote browser:
+For Browse Dev Cloud, authenticate once and start a named remote browser:
 
 ```bash
-browser-use auth login
+browse-dev auth login
 
-browser-use <<'PY'
+browse-dev <<'PY'
 start_remote_daemon("agent-1")
 PY
 ```
@@ -62,14 +62,14 @@ Use the same `BU_NAME` for every later call so the agent stays on that cloud bro
 
 ```bash
 # 1. Navigate and observe
-BU_NAME=agent-1 browser-use <<'PY'
+BU_NAME=agent-1 browse-dev <<'PY'
 new_tab("https://html.duckduckgo.com/html/")
 wait_for_load()
 print(page_info())
 PY
 
 # 2. Interact, then verify the result
-BU_NAME=agent-1 browser-use <<'PY'
+BU_NAME=agent-1 browse-dev <<'PY'
 fill_input('input[name="q"]', "search query")
 press_key("ENTER")
 wait_for_load()
@@ -78,7 +78,7 @@ print(capture_screenshot())
 PY
 
 # 3. Stop the cloud browser when the job is done
-browser-use <<'PY'
+browse-dev <<'PY'
 stop_remote_daemon("agent-1")
 PY
 ```
@@ -135,7 +135,7 @@ await browser.close();
 
 Start the local MCP server:
 ```bash
-uvx --from 'browser-use[cli]' browser-use --mcp
+uvx --from 'browse-dev[cli]' browse-dev --mcp
 ```
 
 The agent gets individual browser tools:

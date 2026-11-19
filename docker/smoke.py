@@ -11,7 +11,7 @@ import tempfile
 from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 
-from browser_use import Agent, Browser
+from browse_dev import Agent, Browser
 
 TURNS = [
 	('python', {'code': "new_tab('data:text/html,<title>docker smoke</title>'); wait_for_load(); t = page_info()['title']"}),

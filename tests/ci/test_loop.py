@@ -10,9 +10,9 @@ from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolRetu
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from test_compaction import FakeRepl
 
-from browser_use.agent import loop
-from browser_use.agent.loop import Session, build_agent, run
-from browser_use.repl import Repl
+from browse_dev.agent import loop
+from browse_dev.agent.loop import Session, build_agent, run
+from browse_dev.repl import Repl
 
 
 class LastMessages:
@@ -449,7 +449,7 @@ async def test_structured_text_reply_gets_one_delivery_repair_turn(daemon, tmp_p
 	from pydantic_ai.models import ModelRequestParameters
 	from pydantic_ai.models._tool_choice import resolve_tool_choice
 
-	from browser_use.agent.loop import DELIVERY_REPAIR
+	from browse_dev.agent.loop import DELIVERY_REPAIR
 
 	seen = []
 
@@ -483,7 +483,7 @@ async def test_structured_text_reply_gets_one_delivery_repair_turn(daemon, tmp_p
 async def test_a_tool_call_on_the_delivery_turn_is_not_run(daemon, tmp_path):
 	"""M2: where python is only withheld from the delivery-only turn (Claude), the model still called it (2/2 runs, one
 	ended empty). The call is now refused, unvalidated, and the model delivers on the next request."""
-	from browser_use.agent.loop import NOT_RUN
+	from browse_dev.agent.loop import NOT_RUN
 
 	model, seen = script(
 		('python', {'code': 'x = 1'}),
@@ -666,7 +666,7 @@ def _choice_recorder(responses):
 async def test_budget_turn_forces_delivery_on_the_same_request(daemon, tmp_path):
 	# v1b let one more python call through after "Budget nearly exhausted" (settings resolved before the hook);
 	# in 4n89qk/t4p501 that turn was spent and the forced finish came one turn late.
-	from browser_use.agent.loop import DELIVER_NOW
+	from browse_dev.agent.loop import DELIVER_NOW
 
 	model, seen = _choice_recorder(
 		[
@@ -691,7 +691,7 @@ async def test_budget_turn_forces_delivery_on_the_same_request(daemon, tmp_path)
 async def test_max_steps_leaves_all_but_the_last_request_for_the_browser(daemon, tmp_path, max_steps):
 	"""C57: max_steps=N ran N-2 cells (delivery at request N-1, repair at N) and N < 3 raised; 0.x ran N-1 steps
 	and made the last one the forced done, so max_steps=1 only delivers."""
-	from browser_use.agent.loop import DELIVER_NOW
+	from browse_dev.agent.loop import DELIVER_NOW
 
 	cell = ('python', {'code': "open('cells.txt', 'a').write('x')"})
 	model, seen = script(*[cell] * (max_steps - 1), ('finish', {'success': True, 'result': 'done'}))
@@ -837,7 +837,7 @@ async def test_screenshot_of_a_hidden_tab_succeeds(daemon, tmp_path):
 	(CI hung 60s on it). screenshot() and raw cdp('Page.captureScreenshot') of a hidden tab both return an image:
 	whether the capture works directly or needs the activate-after-a-short-try path depends on the Chrome build, so
 	only success is asserted here; when activation happens is pinned by the stubbed unit tests above."""
-	from browser_use.repl.session import Repl
+	from browse_dev.repl.session import Repl
 
 	repl = Repl(tmp_path, daemon)
 	try:
@@ -862,7 +862,7 @@ async def test_tabs_of_a_browser_we_own_are_visible_so_scroll_and_keys_work(daem
 	timed out and keys and clicks were dropped until a screenshot. In a browser we launched or were given, the agent's
 	tab is the visible one (as in 0.x), and press_key() sends no nativeVirtualKeyCode (on macOS browser-harness's Windows
 	code opened chrome://settings/help on every printable key)."""
-	from browser_use.repl.session import Repl
+	from browse_dev.repl.session import Repl
 
 	repl = Repl(tmp_path, {**daemon, 'BU_OWN_BROWSER': '1'})
 	try:
@@ -886,12 +886,12 @@ async def test_a_browser_that_cannot_be_reattached_ends_the_cells(tmp_path):
 	"""C04: after the browser died and could not be reattached, the model kept running cells and went looking for another
 	browser: it reattached browser-harness to another run's Chrome and drove it. The next turn is now delivery-only: no
 	more cells, and finish_from_repl still delivers what the REPL has."""
-	from browser_use.agent.loop import DELIVER_NOW, NOT_RUN
+	from browse_dev.agent.loop import DELIVER_NOW, NOT_RUN
 
 	async def reattach():
 		raise RuntimeError('The browser is gone: its browser-harness daemon stopped and could not reattach')
 
-	lost = 'found = [1]\nfrom browser_use.exceptions import BrowserConnectionLost\nraise BrowserConnectionLost()'
+	lost = 'found = [1]\nfrom browse_dev.exceptions import BrowserConnectionLost\nraise BrowserConnectionLost()'
 	model, seen = script(
 		('python', {'code': lost}),
 		('python', {'code': "open('hijack.txt', 'w').write('ran')"}),
@@ -926,7 +926,7 @@ async def test_unknown_tool_names_are_retried_without_ending_the_run(tmp_path):
 async def test_repeated_bad_tool_arguments_do_not_end_the_run(tmp_path):
 	"""python and custom Tools had one retry of their own: two rejected calls in a row (a cell truncated at the output
 	cap, a JSON slip, a wrong key) ended the run with UnexpectedModelBehavior / IncompleteToolCall."""
-	from browser_use import Tools
+	from browse_dev import Tools
 
 	tools = Tools()
 
@@ -954,7 +954,7 @@ async def test_repeated_bad_tool_arguments_do_not_end_the_run(tmp_path):
 async def test_a_custom_tool_never_runs_with_a_secret_placeholder_for_a_value(tmp_path):
 	"""0.x replaced <secret>name</secret> in action arguments with the value. 1.0 passed the placeholder through: the
 	tool sent '<secret>pw</secret>' as the password and the run reported completed. Now it is refused, loudly."""
-	from browser_use import Tools
+	from browse_dev import Tools
 
 	tools, got = Tools(), []
 
@@ -1005,7 +1005,7 @@ async def test_a_model_request_deadline_is_logged_in_tenths_of_a_second(tmp_path
 	import logging
 	import re
 
-	monkeypatch.setattr(logging.getLogger('browser_use'), 'propagate', True)  # caplog listens on the root logger
+	monkeypatch.setattr(logging.getLogger('browse_dev'), 'propagate', True)  # caplog listens on the root logger
 	requests = []
 
 	async def fn(messages, info: AgentInfo):
@@ -1015,7 +1015,7 @@ async def test_a_model_request_deadline_is_logged_in_tenths_of_a_second(tmp_path
 		return ModelResponse(parts=[ToolCallPart('finish', {'result': 'delivered', 'success': True})])
 
 	session = Session(repl=FakeRepl(tmp_path), timeout_s=6)
-	with caplog.at_level('WARNING', logger='browser_use.agent.loop'):
+	with caplog.at_level('WARNING', logger='browse_dev.agent.loop'):
 		result = await run(build_agent(FunctionModel(fn)), 'task', session, 'function:x')
 	assert result.status == 'completed', result.error
 	(line,) = (r.getMessage() for r in caplog.records if 'no answer within' in r.getMessage())
@@ -1040,9 +1040,9 @@ async def test_a_tool_call_written_as_text_is_not_the_answer(tmp_path):
 	assert 'wrote a tool call as text' in str(requests[1][-1].parts)
 
 
-async def test_a_secret_the_model_quoted_is_redacted_where_browser_use_quotes_it_back(tmp_path):
+async def test_a_secret_the_model_quoted_is_redacted_where_browse_dev_quotes_it_back(tmp_path):
 	"""The model can read a secret off a screenshot and write it. result.messages redacted the model's own parts, but
-	browser-use quotes model output back to it: the delivery repair turn ('Your reply, not delivered yet: ...') and a
+	browse-dev quotes model output back to it: the delivery repair turn ('Your reply, not delivered yet: ...') and a
 	schema error (pydantic echoes the rejected 'input'). Those request parts kept the value in result.messages."""
 	from pydantic import BaseModel
 
@@ -1114,7 +1114,7 @@ async def test_a_custom_tool_returning_an_object_pydantic_cannot_serialize_does_
 	"""MIGRATING: an action may return any value and the model sees it. One returning an object pydantic cannot
 	serialize (an SDK response, a client object) ended the run after the browser started: 'PydanticSerializationError:
 	Unable to serialize unknown type' (live: bu-fast). The model now gets its str()."""
-	from browser_use import Tools
+	from browse_dev import Tools
 
 	class Response:
 		def __str__(self):
@@ -1137,7 +1137,7 @@ async def test_a_custom_tool_returning_an_object_pydantic_cannot_serialize_does_
 async def test_a_custom_tool_returning_a_value_that_contains_itself_does_not_end_the_run(tmp_path, secrets):
 	"""A tree with parent links (a dict or dataclass that reaches itself) raised ValueError 'Circular reference
 	detected', which is no PydanticSerializationError: the run ended with it. The model gets its str()."""
-	from browser_use import Tools
+	from browse_dev import Tools
 
 	tools = Tools()
 

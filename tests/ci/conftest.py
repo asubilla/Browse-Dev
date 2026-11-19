@@ -1,4 +1,4 @@
-"""Shared fixtures. Nothing here calls a model provider or Browser Use Cloud."""
+"""Shared fixtures. Nothing here calls a model provider or Browse Dev Cloud."""
 
 import json
 import os
@@ -16,21 +16,44 @@ import pytest
 from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
+# The fork's env name and the pinned browser-harness's own name are the same secret; setting one must set both, so a
+# test that seeds the key with either name feeds the repo and browser-harness identically.
+_API_KEY_ENV_PAIR = ('BROWSE_DEV_API_KEY', 'BROWSER_USE_API_KEY')
+_orig_setenv = pytest.MonkeyPatch.setenv
+_orig_delenv = pytest.MonkeyPatch.delenv
+
+def _setenv(self, name, value, prepend=False):
+    _orig_setenv(self, name, value, prepend=prepend)
+    if name in _API_KEY_ENV_PAIR:
+        alias = _API_KEY_ENV_PAIR[1 - _API_KEY_ENV_PAIR.index(name)]
+        _orig_setenv(self, alias, value)
+
+def _delenv(self, name, raising=True):
+    _orig_delenv(self, name, raising=raising)
+    if name in _API_KEY_ENV_PAIR:
+        alias = _API_KEY_ENV_PAIR[1 - _API_KEY_ENV_PAIR.index(name)]
+        _orig_delenv(self, alias, raising=False)
+
+pytest.MonkeyPatch.setenv = _setenv
+pytest.MonkeyPatch.delenv = _delenv
+
 os.environ['ANONYMIZED_TELEMETRY'] = 'false'
 os.environ['BH_TAB_MARKER'] = '0'
 # REPL workers without an explicit daemon must fail, never drive the developer's own Chrome (the default daemon).
-os.environ['BU_NAME'] = 'browser-use-tests-no-daemon'
-# The Browser Use key store (`browser-use login`) points at a file that never exists: no test reads the developer's key.
-os.environ['BH_AUTH_PATH'] = str(Path(tempfile.gettempdir()) / 'browser-use-tests-no-auth' / 'auth.json')
-# The 0.x config.json `browser-use --mcp` reads: never the developer's own.
-os.environ['BROWSER_USE_CONFIG_DIR'] = str(Path(tempfile.gettempdir()) / 'browser-use-tests-no-config')
-os.environ['BROWSER_USE_TELEMETRY_INTERNAL'] = '1'
-# browser-harness's telemetry.json (`browser-use telemetry disable`) turns the library's events off: never the developer's.
-os.environ['BH_CONFIG_DIR'] = str(Path(tempfile.gettempdir()) / 'browser-use-tests-no-bh-config')
+os.environ['BU_NAME'] = 'browse-dev-tests-no-daemon'
+# The Browse Dev key store (`browse-dev login`) points at a file that never exists: no test reads the developer's key.
+_no_auth_dir = Path(tempfile.mkdtemp(prefix='browse-dev-tests-no-auth-'))
+os.environ['BH_AUTH_PATH'] = str(_no_auth_dir / 'auth.json')
+# The 0.x config.json `browse-dev --mcp` reads: never the developer's own.
+_no_config_dir = Path(tempfile.mkdtemp(prefix='browse-dev-tests-no-config-'))
+os.environ['BROWSE_DEV_CONFIG_DIR'] = str(_no_config_dir)
+os.environ['BROWSE_DEV_TELEMETRY_INTERNAL'] = '1'
+# browser-harness's telemetry.json (`browse-dev telemetry disable`) turns the library's events off: never the developer's.
+os.environ['BH_CONFIG_DIR'] = str(Path(tempfile.gettempdir()) / 'browse-dev-tests-no-bh-config')
 
 # No test reaches the real PostHog: a test that points telemetry at a dead host left a send in flight, and its retry went
 # to the module's host once the fixture had restored it (an event from bu-test-device in production per suite run).
-import browser_use.telemetry.service as _telemetry_service  # noqa: E402
+import browse_dev.telemetry.service as _telemetry_service  # noqa: E402
 
 _telemetry_service.POSTHOG_HOST = 'http://127.0.0.1:9'  # nothing listens on port 9
 
@@ -39,7 +62,7 @@ _telemetry_service.POSTHOG_HOST = 'http://127.0.0.1:9'  # nothing listens on por
 def no_judge(request, monkeypatch):
 	"""Scripted models play a run's own turns: the judge's extra request is tested in test_judge.py, off elsewhere."""
 	if request.module.__name__.rsplit('.', 1)[-1] != 'test_judge':
-		import browser_use.agent.service as service
+		import browse_dev.agent.service as service
 
 		async def skip(self, result):
 			pass

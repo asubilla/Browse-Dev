@@ -1,4 +1,4 @@
-"""Ultrafast mode (port of Browser Use Pi src/ax.ts) against a real headless Chrome; no provider calls."""
+"""Ultrafast mode (port of Browse Dev Pi src/ax.ts) against a real headless Chrome; no provider calls."""
 
 import hashlib
 import re
@@ -10,12 +10,12 @@ import pytest
 from pydantic_ai.messages import ModelRequest, ModelResponse, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
-from browser_use import Agent, Browser, ChatBrowserUse, ChatOpenAI
-from browser_use.agent.loop import build_agent
-from browser_use.agent.prompt import SYSTEM_PROMPT
-from browser_use.ax import AX_PROMPT
-from browser_use.llm import GATEWAY_URL
-from browser_use.repl import Repl
+from browse_dev import Agent, Browser, ChatBrowseDev, ChatOpenAI
+from browse_dev.agent.loop import build_agent
+from browse_dev.agent.prompt import SYSTEM_PROMPT
+from browse_dev.ax import AX_PROMPT
+from browse_dev.llm import GATEWAY_URL
+from browse_dev.repl import Repl
 
 PAGES = {
 	'/form': """<title>Demo</title><h1>Book a trip</h1><p>Pick a city and a date.</p>
@@ -157,7 +157,7 @@ def test_default_prompt_unchanged():
 	clicked: C34; downloads are checked with downloads(), not Browser.downloadProgress events, which a cell drained
 	before they arrived, so the model clicked again; uploads take the task's existing file, which the agent never creates
 	or overwrites, without the hand-written DataTransfer fallback upload_file now does itself: t8_files; report_issue()
-	tells the Browser Use team when browser-use gets in the agent's way, a missing helper included: library_feedback)."""
+	tells the Browse Dev team when browse-dev gets in the agent's way, a missing helper included: library_feedback)."""
 	default = static_instructions(build_agent())
 	assert default == [SYSTEM_PROMPT] == static_instructions(build_agent(mode='default'))
 	assert hashlib.sha256(default[0].encode()).hexdigest() == '01cd1da6278fdb263bcca92a24adf61a949efd26445a54a8cfab373a1c506023'
@@ -172,7 +172,7 @@ async def test_default_worker_has_no_bu(daemon, tmp_path, monkeypatch):
 	r = Repl(tmp_path, daemon)
 	try:
 		out, err = await cell(r, "print('bu' in globals(), drain_events.__module__, os.environ.get('BU_MODE'))")
-		assert err is None and out.strip() == 'False browser_use.repl.captcha None'  # EventPump, not bu
+		assert err is None and out.strip() == 'False browse_dev.repl.captcha None'  # EventPump, not bu
 	finally:
 		await r.close()
 
@@ -445,8 +445,8 @@ async def test_state_printed_once_per_cell(repl, site):
 async def test_bu_fast_and_bu_ultrafast_default_to_ultrafast_mode(monkeypatch, tmp_path):
 	"""Google Flights on bu-ultrafast (local Chrome, 3 runs each): default mode 0/3, ultrafast 3/3 in 21 s. Any gateway
 	model form gets it; mode='default' opts out; other models keep the default mode."""
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'fake-test-key')
-	monkeypatch.setattr(ChatBrowserUse, 'preflight', lambda self: None)
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'fake-test-key')
+	monkeypatch.setattr(ChatBrowseDev, 'preflight', lambda self: None)
 	repls = []
 
 	async def start(self):
@@ -457,11 +457,11 @@ async def test_bu_fast_and_bu_ultrafast_default_to_ultrafast_mode(monkeypatch, t
 		raise RuntimeError('stop')
 
 	monkeypatch.setattr(Browser, 'start', start)
-	monkeypatch.setattr('browser_use.agent.service.Repl', repl)
+	monkeypatch.setattr('browse_dev.agent.service.Repl', repl)
 	for llm, mode, expected in [
 		('bu-fast', None, 'ultrafast'),
-		(ChatBrowserUse('bu-ultrafast'), None, 'ultrafast'),
-		(ChatBrowserUse('bu-fast').pydantic_model(), None, 'ultrafast'),
+		(ChatBrowseDev('bu-ultrafast'), None, 'ultrafast'),
+		(ChatBrowseDev('bu-fast').pydantic_model(), None, 'ultrafast'),
 		(ChatOpenAI('bu-ultrafast', base_url=GATEWAY_URL), None, 'ultrafast'),
 		('bu-fast', 'default', 'default'),
 		('bu-smart', None, 'default'),

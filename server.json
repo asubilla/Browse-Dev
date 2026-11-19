@@ -1,18 +1,18 @@
 {
 	"$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-	"name": "com.browser-use/browser-use",
+	"name": "com.browse-dev/browse-dev",
 	"description": "Browser agents and stealth cloud browsers for AI: run web tasks, fill forms, extract data.",
 	"repository": {
-		"url": "https://github.com/browser-use/browser-use",
+		"url": "https://github.com/asubilla/Browse-Dev",
 		"source": "github"
 	},
-	"websiteUrl": "https://browser-use.com",
+	"websiteUrl": "https://github.com/asubilla/Browse-Dev",
 	"version": "1.0.6",
 	"packages": [
 		{
 			"registryType": "pypi",
 			"registryBaseUrl": "https://pypi.org",
-			"identifier": "browser-use",
+			"identifier": "browse-dev",
 			"version": "1.0.6",
 			"runtimeHint": "uvx",
 			"packageArguments": [
@@ -33,7 +33,7 @@
 			"headers": [
 				{
 					"name": "X-Browser-Use-API-Key",
-					"description": "Browser Use Cloud API key from https://cloud.browser-use.com/settings",
+					"description": "Browse Dev Cloud API key from https://cloud.browser-use.com/settings",
 					"isRequired": true,
 					"isSecret": true
 				}

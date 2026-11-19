@@ -8,13 +8,13 @@ where `scripts/diagrams/` generates them (`task docs:diagrams`). Regenerate ther
 and copy the four files here; phones under 600 px get the mobile variants.
 
 The figure shows the README's three paths: the hosted V4 agent drives a cloud
-browser, while the Browser Use CLI and the Python library drive a cloud or local
+browser, while the Browse Dev CLI and the Python library drive a cloud or local
 browser.
 
 ## Benchmark plot
 
 `../hard_benchmark_v2.jpg` is a lossless crop of the
-[original plot](https://github.com/browser-use/browser-use/blob/f5f58c6ef4e6b95728f8b304015bb29f00bddd69/static/hard_benchmark_v2.jpg).
+[original plot](https://github.com/asubilla/Browse-Dev/blob/f5f58c6ef4e6b95728f8b304015bb29f00bddd69/static/hard_benchmark_v2.jpg).
 Only the top 80 pixels containing the title were removed; all retained pixels
 are unchanged. The title appears as a README heading instead.
 

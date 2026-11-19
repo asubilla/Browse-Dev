@@ -10,19 +10,19 @@ import pytest
 from conftest import script
 from pydantic_ai.models.function import FunctionModel
 
-from browser_use import Agent, Browser, ChatBrowserUse
-from browser_use.agent.loop import Session, build_agent, run
-from browser_use.agent.prompt import LOCAL_PROMPT, SEARCH_PROMPT, SYSTEM_PROMPT
-from browser_use.exceptions import MissingAPIKeyError
-from browser_use.repl import Repl
-from browser_use.search import SearchError, WebSearch, search_url
+from browse_dev import Agent, Browser, ChatBrowseDev
+from browse_dev.agent.loop import Session, build_agent, run
+from browse_dev.agent.prompt import LOCAL_PROMPT, SEARCH_PROMPT, SYSTEM_PROMPT
+from browse_dev.exceptions import MissingAPIKeyError
+from browse_dev.repl import Repl
+from browse_dev.search import SearchError, WebSearch, search_url
 
 KEY = 'bu_test_search_key'
 HITS = {
 	'query': 'q',
 	'count': 2,
 	'results': 'Title: A\nURL: https://a.example\nHighlights:\nintro\n\n---\n\nmore of A\n\n---\n\nTitle: B',  # a '---' rule inside A's highlights
-	'browser_use': {'charge_usd': '0.007'},
+	'browse_dev': {'charge_usd': '0.007'},
 }
 
 
@@ -105,7 +105,7 @@ def test_request_shape_and_result_parsing(endpoint):
 	],
 )
 def test_errors(endpoint, monkeypatch, reply, message):
-	monkeypatch.setattr('browser_use.search.SEARCH_TIMEOUT_S', 0.5)
+	monkeypatch.setattr('browse_dev.search.SEARCH_TIMEOUT_S', 0.5)
 	endpoint.reply = reply
 	search = WebSearch(KEY, endpoint.url)
 	with pytest.raises(SearchError, match=message):
@@ -159,7 +159,7 @@ def test_preflight_never_raises_on_a_broken_response(raw, expected):
 
 
 async def test_repl_search_is_answered_by_the_parent(endpoint, tmp_path, monkeypatch):
-	monkeypatch.setattr('browser_use.search.SEARCH_TIMEOUT_S', 0.5)
+	monkeypatch.setattr('browse_dev.search.SEARCH_TIMEOUT_S', 0.5)
 	repl = Repl(tmp_path, search=WebSearch(KEY, endpoint.url))
 	try:
 		r = await repl.call('exec', "r = search('x', num_results=2)\nprint(r['count'], r['results'])", 30)
@@ -203,7 +203,7 @@ def charged_script(*turns):
 	inner = model.function
 
 	def fn(messages, info):
-		return replace(inner(messages, info), provider_details={'browser_use': {'charge_usd': '0.001'}})  # type: ignore[arg-type]
+		return replace(inner(messages, info), provider_details={'browse_dev': {'charge_usd': '0.001'}})  # type: ignore[arg-type]
 
 	return FunctionModel(fn)
 
@@ -213,15 +213,15 @@ async def test_search_charges_are_added_to_cost(endpoint, tmp_path):
 	turns = (('python', {'code': "search('a'); search('b')"}), ('finish', {'result': 'done'}))
 	repl = Repl(tmp_path, search=WebSearch(KEY, endpoint.url))
 	try:
-		r = await run(build_agent(charged_script(*turns)), 'task', Session(repl=repl), 'browser-use:bu-fast')
+		r = await run(build_agent(charged_script(*turns)), 'task', Session(repl=repl), 'browse-dev:bu-fast')
 		assert r.cost_usd == pytest.approx(2 * 0.001 + 2 * 0.007)
-		r = await run(build_agent(charged_script(turns[1])), 'task', Session(repl=repl), 'browser-use:bu-fast')
+		r = await run(build_agent(charged_script(turns[1])), 'task', Session(repl=repl), 'browse-dev:bu-fast')
 		assert r.cost_usd == pytest.approx(0.001)  # earlier runs' searches are not counted again
-		endpoint.reply = (200, {'query': 'q', 'count': 0, 'results': []}, 0)  # no browser_use.charge_usd
-		r = await run(build_agent(charged_script(*turns)), 'task', Session(repl=repl), 'browser-use:bu-fast')
+		endpoint.reply = (200, {'query': 'q', 'count': 0, 'results': []}, 0)  # no browse_dev.charge_usd
+		r = await run(build_agent(charged_script(*turns)), 'task', Session(repl=repl), 'browse-dev:bu-fast')
 		assert r.cost_usd == pytest.approx(2 * 0.001)  # the model cost stays; never None for an uncharged search
 		endpoint.reply = (200, HITS, 0)  # charged again, but the model cost is unknown (an unpriced model)
-		r = await run(build_agent(script(*turns)[0]), 'task', Session(repl=repl), 'browser-use:bu-fast')
+		r = await run(build_agent(script(*turns)[0]), 'task', Session(repl=repl), 'browse-dev:bu-fast')
 		assert r.cost_usd is None
 	finally:
 		await repl.close()
@@ -229,9 +229,9 @@ async def test_search_charges_are_added_to_cost(endpoint, tmp_path):
 
 def built(monkeypatch, tmp_path, key: str | None, browser=None, llm='test', **kw) -> Agent:
 	if key:
-		monkeypatch.setenv('BROWSER_USE_API_KEY', key)
+		monkeypatch.setenv('BROWSE_DEV_API_KEY', key)
 	else:
-		monkeypatch.delenv('BROWSER_USE_API_KEY', raising=False)
+		monkeypatch.delenv('BROWSE_DEV_API_KEY', raising=False)
 	agent = Agent('t', llm, browser=browser or Browser('chromium'), workspace=tmp_path, **kw)
 	agent._build()
 	return agent
@@ -264,7 +264,7 @@ def test_web_search_with_allowed_domains_raises(monkeypatch, tmp_path):
 
 
 def test_web_search_true_without_a_key_raises(monkeypatch, tmp_path):
-	with pytest.raises(MissingAPIKeyError, match=r'^Agent\(web_search=True\) needs a Browser Use API key'):
+	with pytest.raises(MissingAPIKeyError, match=r'^Agent\(web_search=True\) needs a Browse Dev API key'):
 		built(monkeypatch, tmp_path, None, web_search=True)
 
 
@@ -274,7 +274,7 @@ def test_bad_web_search_value_raises(tmp_path):
 
 
 def test_gateway_model_lends_its_key_and_host(monkeypatch, tmp_path):
-	llm = ChatBrowserUse(api_key='bu_gateway_key', base_url='http://127.0.0.1:9/api/v4/llm/v1')
+	llm = ChatBrowseDev(api_key='bu_gateway_key', base_url='http://127.0.0.1:9/api/v4/llm/v1')
 	agent = built(monkeypatch, tmp_path, None, llm=llm, web_search=True)
 	assert agent._search and (agent._search.api_key, agent._search.url) == ('bu_gateway_key', 'http://127.0.0.1:9/api/v4/search')
 
@@ -304,7 +304,7 @@ async def test_missing_search_endpoint_fails_before_the_browser_starts(endpoint,
 	result = await agent.run()
 	assert (result.status, result.steps, started) == ('error', 0, [])
 	assert (
-		result.error == f'Agent(web_search=True): Browser Use web search at {endpoint.url} answered HTTP 404: 404 page not found'
+		result.error == f'Agent(web_search=True): Browse Dev web search at {endpoint.url} answered HTTP 404: 404 page not found'
 	)
 	assert endpoint.seen[-1]['body'] == {}  # no query: nothing searched, nothing charged
 	endpoint.reply = (422, {'detail': 'query: Field required'}, 0)  # there, and the key works

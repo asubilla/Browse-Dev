@@ -8,10 +8,10 @@ import pytest
 from conftest import script
 from pydantic import BaseModel
 
-from browser_use import ActionResult, Agent, AgentHistoryList, Browser, ChatAnthropic, ChatGoogle, Controller, Tools
-from browser_use.agent.loop import Session, build_agent, run
-from browser_use.repl import Repl
-from browser_use.tools import RemovedField
+from browse_dev import ActionResult, Agent, AgentHistoryList, Browser, ChatAnthropic, ChatGoogle, Controller, Tools
+from browse_dev.agent.loop import Session, build_agent, run
+from browse_dev.repl import Repl
+from browse_dev.tools import RemovedField
 
 
 @pytest.fixture
@@ -23,9 +23,9 @@ def no_browser(monkeypatch):
 
 
 REMOVED = (
-	r'was removed in browser-use 1\.0\. Open an issue at https://github\.com/browser-use/browser-use/issues if you need it\.'
+	r'was removed in browse-dev 1\.0\. Open an issue at https://github\.com/asubilla/Browse-Dev/issues if you need it\.'
 )
-GUIDE = r' Migration guide: https://github\.com/browser-use/browser-use/blob/main/MIGRATING\.md$'
+GUIDE = r' Migration guide: https://github\.com/asubilla/Browse-Dev/blob/main/MIGRATING\.md$'
 
 
 @pytest.mark.parametrize(
@@ -49,7 +49,7 @@ def test_removed_0x_agent_kwarg_raises_one_error_naming_it(kwarg, no_browser):
 
 
 def test_unknown_agent_kwarg_is_not_called_removed(no_browser):
-	with pytest.raises(TypeError, match=r'^Agent\(some_new_kwarg=\.\.\.\) is not a browser-use 1\.0 option'):
+	with pytest.raises(TypeError, match=r'^Agent\(some_new_kwarg=\.\.\.\) is not a browse-dev 1\.0 option'):
 		Agent('t', script()[0], some_new_kwarg=True)
 
 
@@ -61,10 +61,10 @@ def test_removed_alternative_is_named(no_browser):
 def test_agent_highlight_elements_names_highlight_actions(no_browser, caplog, monkeypatch):
 	"""C7: the cloud dashboard snippet's Agent(highlight_elements=...) raised a generic 'not a 1.0 option'. 0.x Agent took
 	it in **kwargs and ignored it: 1.0 ignores it too, with a warning naming highlight_actions."""
-	monkeypatch.setattr(logging.getLogger('browser_use'), 'propagate', True)  # caplog listens on the root logger
-	with caplog.at_level('WARNING', logger='browser_use'):
+	monkeypatch.setattr(logging.getLogger('browse_dev'), 'propagate', True)  # caplog listens on the root logger
+	with caplog.at_level('WARNING', logger='browse_dev'):
 		Agent('t', script()[0], highlight_elements=True)
-	assert 'Agent(highlight_elements=...) is ignored in browser-use 1.0: Agent(highlight_actions=True | False)' in caplog.text
+	assert 'Agent(highlight_elements=...) is ignored in browse-dev 1.0: Agent(highlight_actions=True | False)' in caplog.text
 
 
 def test_available_file_paths_error_says_there_is_no_allowlist(no_browser):
@@ -78,13 +78,13 @@ def test_available_file_paths_error_says_there_is_no_allowlist(no_browser):
 def test_0x_tuning_knobs_warn_and_construct(no_browser, caplog, monkeypatch):
 	"""use_vision=False alone is on 31% of 0.x devices: a script that only tuned the old loop keeps running."""
 	knobs = dict(use_vision=False, max_actions_per_step=3, flash_mode=True, use_thinking=True, max_failures=5)
-	monkeypatch.setattr(logging.getLogger('browser_use'), 'propagate', True)  # caplog listens on the root logger
-	with caplog.at_level('WARNING', logger='browser_use'):
+	monkeypatch.setattr(logging.getLogger('browse_dev'), 'propagate', True)  # caplog listens on the root logger
+	with caplog.at_level('WARNING', logger='browse_dev'):
 		Agent('t', script()[0], **knobs)
-	warnings = [r.getMessage() for r in caplog.records if 'is ignored in browser-use 1.0' in r.getMessage()]
+	warnings = [r.getMessage() for r in caplog.records if 'is ignored in browse-dev 1.0' in r.getMessage()]
 	assert [w.split('=')[0] for w in warnings] == [f'Agent({k}' for k in knobs if k != 'use_vision']  # False is kept
 	assert not Agent('t', script()[0], use_vision=False).use_vision and Agent('t', script()[0], use_vision='auto').use_vision
-	assert "Agent(use_thinking=...) is ignored in browser-use 1.0: reasoning='low' | 'medium' | 'high'." in warnings
+	assert "Agent(use_thinking=...) is ignored in browse-dev 1.0: reasoning='low' | 'medium' | 'high'." in warnings
 	with pytest.raises(TypeError, match=r'^Agent\(initial_actions=\.\.\.\)'):  # a real removed feature still raises
 		Agent('t', script()[0], use_vision=False, initial_actions=[])
 
@@ -129,39 +129,39 @@ def test_short_or_list_shaped_sensitive_data_is_explained(no_browser, caplog):
 	"""M23 and a low: a short value warns (redacted only where it stands alone); a list of tuples gave a raw dict error."""
 	import logging
 
-	logging.getLogger('browser_use').propagate = True
+	logging.getLogger('browse_dev').propagate = True
 	try:
 		Agent('t', script()[0], browser=Browser(local=True), sensitive_data={'pin': '42', 'pw': 'long-enough'})
 	finally:
-		logging.getLogger('browser_use').propagate = False
+		logging.getLogger('browse_dev').propagate = False
 	assert 'sensitive_data pin: values under 4 characters' in caplog.text and 'pw' not in caplog.text.split('sensitive_data')[1]
 	with pytest.raises(TypeError, match='sensitive_data must be a dict'):
 		Agent('t', script()[0], browser=Browser(local=True), sensitive_data=[('pw', 'x', 'https://a.com')])
 
 
 def test_0x_environment_variables_1_0_ignores_say_so(no_browser, monkeypatch, caplog):
-	"""M38: DEFAULT_LLM (runs billed bu-fast), BROWSER_USE_HEADLESS and log level 'result' were silently ignored. Low:
+	"""M38: DEFAULT_LLM (runs billed bu-fast), BROWSE_DEV_HEADLESS and log level 'result' were silently ignored. Low:
 	ANONYMIZED_TELEMETRY='' left telemetry on."""
 	import logging
 
-	from browser_use.config import CONFIG
-	from browser_use.logging_config import setup_logging
+	from browse_dev.config import CONFIG
+	from browse_dev.logging_config import setup_logging
 
 	monkeypatch.setenv('DEFAULT_LLM', 'openai_gpt_4o')
-	monkeypatch.setenv('BROWSER_USE_HEADLESS', 'false')
-	monkeypatch.setenv('BROWSER_USE_LLM_URL', 'https://llm.staging.example.test/v1')  # rr-legacy 6: sent to production
-	monkeypatch.setenv('BROWSER_USE_DEBUG_LOG_FILE', 'debug.log')  # review: 0.x wrote it; 1.0 wrote nothing, silently
-	monkeypatch.setattr(logging.getLogger('browser_use'), 'propagate', True)
+	monkeypatch.setenv('BROWSE_DEV_HEADLESS', 'false')
+	monkeypatch.setenv('BROWSE_DEV_LLM_URL', 'https://llm.staging.example.test/v1')  # rr-legacy 6: sent to production
+	monkeypatch.setenv('BROWSE_DEV_DEBUG_LOG_FILE', 'debug.log')  # review: 0.x wrote it; 1.0 wrote nothing, silently
+	monkeypatch.setattr(logging.getLogger('browse_dev'), 'propagate', True)
 	Agent('t', browser=Browser(local=True))
-	logging.getLogger('browser_use').addHandler(caplog.handler)  # setup_logging turns propagation off
+	logging.getLogger('browse_dev').addHandler(caplog.handler)  # setup_logging turns propagation off
 	try:
 		setup_logging('result')
 	finally:
-		logging.getLogger('browser_use').removeHandler(caplog.handler)
-	assert 'DEFAULT_LLM is set' in caplog.text and 'BROWSER_USE_HEADLESS is set' in caplog.text
-	assert 'BROWSER_USE_LLM_URL is set but browser-use 1.0 does not read it' in caplog.text
-	assert "BROWSER_USE_LOGGING_LEVEL='result' is not a level" in caplog.text
-	assert 'BROWSER_USE_DEBUG_LOG_FILE is set but browser-use 1.0 does not read it' in caplog.text
+		logging.getLogger('browse_dev').removeHandler(caplog.handler)
+	assert 'DEFAULT_LLM is set' in caplog.text and 'BROWSE_DEV_HEADLESS is set' in caplog.text
+	assert 'BROWSE_DEV_LLM_URL is set but browse-dev 1.0 does not read it' in caplog.text
+	assert "BROWSE_DEV_LOGGING_LEVEL='result' is not a level" in caplog.text
+	assert 'BROWSE_DEV_DEBUG_LOG_FILE is set but browse-dev 1.0 does not read it' in caplog.text
 	setup_logging('info')
 	for value, on in (('', False), ('false', False), ('nope', False), ('true', True), ('1', True)):
 		monkeypatch.setenv('ANONYMIZED_TELEMETRY', value)
@@ -180,22 +180,22 @@ def test_dotenv_in_the_working_directory_supplies_the_key(tmp_path):
 	import subprocess
 	import sys
 
-	(tmp_path / '.env').write_text('BROWSER_USE_API_KEY=fake-dotenv-key\n', encoding='utf-8')
-	env = {k: v for k, v in os.environ.items() if k != 'BROWSER_USE_API_KEY'}
+	(tmp_path / '.env').write_text('BROWSE_DEV_API_KEY=fake-dotenv-key\n', encoding='utf-8')
+	env = {k: v for k, v in os.environ.items() if k != 'BROWSE_DEV_API_KEY'}
 	env.update(HOME=str(tmp_path), USERPROFILE=str(tmp_path), XDG_CONFIG_HOME=str(tmp_path / 'cfg'))
-	code = "from browser_use import Agent\nAgent('t')._build()\nprint('resolved')"
+	code = "from browse_dev import Agent\nAgent('t')._build()\nprint('resolved')"
 	r = subprocess.run([sys.executable, '-c', code], cwd=tmp_path, env=env, capture_output=True, text=True, timeout=60)
 	assert r.stdout.strip() == 'resolved', r.stderr[-2000:]
 
 
 def test_removed_classes_raise_with_pointer():
-	import browser_use
+	import browse_dev
 
 	for name in ['BrowserSession', 'BrowserProfile', 'ChatGroq', 'DomService']:
-		with pytest.raises(AttributeError, match=rf'^browser_use\.{name} {REMOVED}'):
-			getattr(browser_use, name)
-		with pytest.raises(ImportError, match=rf'^browser_use\.{name} {REMOVED}'):
-			exec(f'from browser_use import {name}')
+		with pytest.raises(AttributeError, match=rf'^browse_dev\.{name} {REMOVED}'):
+			getattr(browse_dev, name)
+		with pytest.raises(ImportError, match=rf'^browse_dev\.{name} {REMOVED}'):
+			exec(f'from browse_dev import {name}')
 	# C19: each provider class names its own replacement (Azure was 16.7% of external 0.x runs and got a groq example)
 	for name, instead in [
 		('ChatAzureOpenAI', "llm='azure:<deployment>' with AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY and OPENAI_API_VERSION"),
@@ -206,40 +206,40 @@ def test_removed_classes_raise_with_pointer():
 		('ChatOllama', "ChatOpenAI('<model>', base_url='http://localhost:11434/v1'"),
 	]:
 		with pytest.raises(ImportError, match=rf'{REMOVED} In 1\.0: {re.escape(instead)}'):
-			exec(f'from browser_use import {name}')
-		with pytest.raises(ImportError, match=rf'^browser_use\.llm\.{name} {REMOVED} In 1\.0: '):
-			exec(f'from browser_use.llm import {name}')  # the common 0.x import path
+			exec(f'from browse_dev import {name}')
+		with pytest.raises(ImportError, match=rf'^browse_dev\.llm\.{name} {REMOVED} In 1\.0: '):
+			exec(f'from browse_dev.llm import {name}')  # the common 0.x import path
 	with pytest.raises(ImportError, match='cannot import name'):
-		exec('from browser_use.llm import NotAThing')
+		exec('from browse_dev.llm import NotAThing')
 
 
 @pytest.mark.parametrize(
 	'path, instead',
 	[
-		('browser_use.browser.events', "logging.getLogger('browser_use')"),  # the 0.x hooks docs, verbatim
-		('browser_use.browser.session', 'from browser_use import Browser'),
-		('browser_use.browser.watchdogs.dom_watchdog', 'from browser_use import Browser'),
-		('browser_use.mcp.client', '@tools.action'),
-		('browser_use.controller.service', 'from browser_use import Tools'),
-		('browser_use.tools.service', 'from browser_use import Tools'),  # browser_use.tools is a module in 1.0
-		('browser_use.tools.registry.views', 'from browser_use import Tools'),
-		('browser_use.llm.openai.chat', 'from browser_use import ChatOpenAI'),
-		('browser_use.llm.google.chat', 'from browser_use import ChatGoogle'),
-		('browser_use.llm.aws.chat_bedrock', "llm='bedrock:<model id>'"),
-		('browser_use.llm.azure.chat', "llm='azure:<deployment>'"),
-		('browser_use.llm.base', 'pydantic_ai.Agent(llm.pydantic_model())'),
-		('browser_use.llm.messages', 'pydantic_ai.Agent(llm.pydantic_model())'),
-		('browser_use.observability', 'pydantic_ai.Agent.instrument_all()'),
-		('browser_use.dom.service', 'Python and raw CDP'),
-		('browser_use.actor.page', 'Python and raw CDP'),
-		('browser_use.agent.message_manager.service', 'result.messages'),
-		('browser_use.tokens.service', 'result.cost_usd'),
-		('browser_use.filesystem.file_system', 'Agent(workspace=...)'),
-		('browser_use.sandbox', ''),
-		('browser_use.browser.context', 'from browser_use import Browser'),  # 0.1.x-0.5.x
-		('browser_use.agent.memory.service', 'compacted'),
-		('browser_use.code_use.service', 'writes Python itself'),  # 0.8.x-0.11.x
-		('browser_use.skill_cli.main', 'browser-harness'),  # 0.11.x-0.12.x
+		('browse_dev.browser.events', "logging.getLogger('browse_dev')"),  # the 0.x hooks docs, verbatim
+		('browse_dev.browser.session', 'from browse_dev import Browser'),
+		('browse_dev.browser.watchdogs.dom_watchdog', 'from browse_dev import Browser'),
+		('browse_dev.mcp.client', '@tools.action'),
+		('browse_dev.controller.service', 'from browse_dev import Tools'),
+		('browse_dev.tools.service', 'from browse_dev import Tools'),  # browse_dev.tools is a module in 1.0
+		('browse_dev.tools.registry.views', 'from browse_dev import Tools'),
+		('browse_dev.llm.openai.chat', 'from browse_dev import ChatOpenAI'),
+		('browse_dev.llm.google.chat', 'from browse_dev import ChatGoogle'),
+		('browse_dev.llm.aws.chat_bedrock', "llm='bedrock:<model id>'"),
+		('browse_dev.llm.azure.chat', "llm='azure:<deployment>'"),
+		('browse_dev.llm.base', 'pydantic_ai.Agent(llm.pydantic_model())'),
+		('browse_dev.llm.messages', 'pydantic_ai.Agent(llm.pydantic_model())'),
+		('browse_dev.observability', 'pydantic_ai.Agent.instrument_all()'),
+		('browse_dev.dom.service', 'Python and raw CDP'),
+		('browse_dev.actor.page', 'Python and raw CDP'),
+		('browse_dev.agent.message_manager.service', 'result.messages'),
+		('browse_dev.tokens.service', 'result.cost_usd'),
+		('browse_dev.filesystem.file_system', 'Agent(workspace=...)'),
+		('browse_dev.sandbox', ''),
+		('browse_dev.browser.context', 'from browse_dev import Browser'),  # 0.1.x-0.5.x
+		('browse_dev.agent.memory.service', 'compacted'),
+		('browse_dev.code_use.service', 'writes Python itself'),  # 0.8.x-0.11.x
+		('browse_dev.skill_cli.main', 'browser-harness'),  # 0.11.x-0.12.x
 	],
 )
 def test_0x_module_paths_name_their_replacement(path, instead):
@@ -248,35 +248,35 @@ def test_0x_module_paths_name_their_replacement(path, instead):
 	`except ImportError` fallbacks."""
 	import importlib
 
-	with pytest.raises(ModuleNotFoundError, match=rf'^browser_use\.[\w.]+ {REMOVED}.*{GUIDE}') as raised:
+	with pytest.raises(ModuleNotFoundError, match=rf'^browse_dev\.[\w.]+ {REMOVED}.*{GUIDE}') as raised:
 		importlib.import_module(path)
 	assert instead in str(raised.value) and path.startswith(raised.value.name or '-')
-	with pytest.raises(ModuleNotFoundError, match=r"^No module named 'browser_use\.not_a_0x_module'$"):
-		importlib.import_module('browser_use.not_a_0x_module')  # a path 0.x never had is left to Python
+	with pytest.raises(ModuleNotFoundError, match=r"^No module named 'browse_dev\.not_a_0x_module'$"):
+		importlib.import_module('browse_dev.not_a_0x_module')  # a path 0.x never had is left to Python
 
 
 @pytest.mark.parametrize(
 	'package, module',
 	[
-		('browser_use', 'dom'),
-		('browser_use', 'controller'),
-		('browser_use.browser', 'session'),
-		('browser_use.llm', 'openai'),
-		('browser_use.agent', 'message_manager'),
-		('browser_use.tools', 'registry'),  # browser_use.tools is a module in 1.0
-		('browser_use.mcp', 'client'),
+		('browse_dev', 'dom'),
+		('browse_dev', 'controller'),
+		('browse_dev.browser', 'session'),
+		('browse_dev.llm', 'openai'),
+		('browse_dev.agent', 'message_manager'),
+		('browse_dev.tools', 'registry'),  # browse_dev.tools is a module in 1.0
+		('browse_dev.mcp', 'client'),
 	],
 )
 def test_0x_submodules_imported_from_their_package_name_their_replacement(package, module):
-	"""`from browser_use.browser import session`: Python's from-import asks the package for the name first and swallows
+	"""`from browse_dev.browser import session`: Python's from-import asks the package for the name first and swallows
 	the import hook's ModuleNotFoundError for a missing submodule, so it raised a bare "cannot import name 'session'"."""
 	import subprocess
 
 	with pytest.raises(ModuleNotFoundError, match=rf'^{re.escape(package)}\.{module} {REMOVED}.*{GUIDE}'):
 		exec(f'from {package} import {module}')
-	# real 1.0 modules under a 0.x prefix the hook knows (browser_use.tools, browser_use.llm) still import, in a fresh
+	# real 1.0 modules under a 0.x prefix the hook knows (browse_dev.tools, browse_dev.llm) still import, in a fresh
 	# interpreter where no package has them as attributes yet
-	code = 'from browser_use import tools, llm, agent, skills; from browser_use.mcp import cli_mcp; from browser_use.skills import install'
+	code = 'from browse_dev import tools, llm, agent, skills; from browse_dev.mcp import cli_mcp; from browse_dev.skills import install'
 	r = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, timeout=60)
 	assert r.returncode == 0, r.stderr
 
@@ -284,21 +284,21 @@ def test_0x_submodules_imported_from_their_package_name_their_replacement(packag
 def test_0x_names_and_members_name_their_replacement():
 	"""rr-legacy: ProxySettings, AgentOutput/AgentState, BaseChatModel, Browser.list_chrome_profiles() and llm.ainvoke()
 	gave a bare ImportError / AttributeError."""
-	import browser_use.utils
-	from browser_use import ChatOpenAI
+	import browse_dev.utils
+	from browse_dev import ChatOpenAI
 
 	for module, name, instead in [
-		('browser_use.browser', 'ProxySettings', 'cloud_proxy_country_code'),
-		('browser_use.agent.views', 'AgentOutput', 'result.messages'),
-		('browser_use.agent.views', 'AgentState', 'AgentHistoryList'),
-		('browser_use.llm', 'BaseChatModel', 'pydantic_ai.models.Model'),
-		('browser_use.llm', 'UserMessage', 'pydantic_ai.Agent(llm.pydantic_model())'),
-		('browser_use.mcp', 'MCPClient', '@tools.action'),
-		('browser_use.utils', 'time_execution_async', 'internal helper'),
-		('browser_use', 'BrowserContextConfig', 'Browser(...)'),  # 0.1.x-0.5.x
-		('browser_use.browser.browser', 'BrowserContextConfig', 'Browser(...)'),
-		('browser_use', 'CodeAgent', 'writes Python itself'),
-		('browser_use.cli', 'BrowserUseApp', 'browser-harness'),
+		('browse_dev.browser', 'ProxySettings', 'cloud_proxy_country_code'),
+		('browse_dev.agent.views', 'AgentOutput', 'result.messages'),
+		('browse_dev.agent.views', 'AgentState', 'AgentHistoryList'),
+		('browse_dev.llm', 'BaseChatModel', 'pydantic_ai.models.Model'),
+		('browse_dev.llm', 'UserMessage', 'pydantic_ai.Agent(llm.pydantic_model())'),
+		('browse_dev.mcp', 'MCPClient', '@tools.action'),
+		('browse_dev.utils', 'time_execution_async', 'internal helper'),
+		('browse_dev', 'BrowserContextConfig', 'Browser(...)'),  # 0.1.x-0.5.x
+		('browse_dev.browser.browser', 'BrowserContextConfig', 'Browser(...)'),
+		('browse_dev', 'CodeAgent', 'writes Python itself'),
+		('browse_dev.cli', 'BrowseDevApp', 'browser-harness'),
 	]:
 		with pytest.raises(ImportError, match=rf'^{re.escape(module)}\.{name} {REMOVED} In 1\.0: .*{GUIDE}') as raised:
 			exec(f'from {module} import {name}')
@@ -312,31 +312,31 @@ def test_0x_names_and_members_name_their_replacement():
 	]:
 		with pytest.raises(AttributeError, match=rf'{match}.*{GUIDE}'):
 			fn()
-	assert not hasattr(browser_use.utils, 'not_a_0x_name') and not hasattr(ChatOpenAI('m', api_key='x'), 'nope')
+	assert not hasattr(browse_dev.utils, 'not_a_0x_name') and not hasattr(ChatOpenAI('m', api_key='x'), 'nope')
 
 
 def test_feature_detection_of_removed_0x_names_takes_the_fallback():
-	"""Review: hasattr(browser_use, 'BrowserSession') and getattr(..., None) raised ImportError, so code that supports
+	"""Review: hasattr(browse_dev, 'BrowserSession') and getattr(..., None) raised ImportError, so code that supports
 	0.x and 1.0 by feature detection crashed. A from-import still names the 1.0 answer."""
-	import browser_use.agent.views
-	import browser_use.llm
-	import browser_use.tools
+	import browse_dev.agent.views
+	import browse_dev.llm
+	import browse_dev.tools
 
 	for module, name in [
-		(browser_use, 'BrowserSession'),
-		(browser_use, 'ChatGroq'),
-		(browser_use, 'dom'),
-		(browser_use.llm, 'ChatGroq'),
-		(browser_use.llm, 'openai_gpt_4o'),
-		(browser_use.agent.views, 'AgentOutput'),
-		(browser_use.tools, 'registry'),
+		(browse_dev, 'BrowserSession'),
+		(browse_dev, 'ChatGroq'),
+		(browse_dev, 'dom'),
+		(browse_dev.llm, 'ChatGroq'),
+		(browse_dev.llm, 'openai_gpt_4o'),
+		(browse_dev.agent.views, 'AgentOutput'),
+		(browse_dev.tools, 'registry'),
 	]:
 		assert not hasattr(module, name) and getattr(module, name, 'fallback') == 'fallback', name
 		with pytest.raises(ImportError, match=rf'^{re.escape(module.__name__)}\.{name} {REMOVED}'):
 			exec(f'from {module.__name__} import {name}')
 
 	def _handle_fromlist():  # a user's function named like importlib's is not a from-import
-		return getattr(browser_use, 'BrowserSession', 'fallback')
+		return getattr(browse_dev, 'BrowserSession', 'fallback')
 
 	assert _handle_fromlist() == 'fallback'
 
@@ -344,9 +344,9 @@ def test_feature_detection_of_removed_0x_names_takes_the_fallback():
 def test_0x_names_from_every_tag_name_their_replacement():
 	"""Live migration survey (ast over all 152 0.x tags, 20 popular GitHub files): 0.1-0.13 Agent arguments and
 	methods, BrowserSession/BrowserContext members, Controller and @action arguments and the llm.<model> instances gave
-	a bare AttributeError or "not a browser-use 1.0 option" with no answer; ActionResult(images=...) went to the model
+	a bare AttributeError or "not a browse-dev 1.0 option" with no answer; ActionResult(images=...) went to the model
 	as base64 JSON text."""
-	from browser_use import llm
+	from browse_dev import llm
 
 	usage = {'input': 1, 'output': 1, 'cache_read': 0, 'cache_write': 0, 'requests': 1}
 	result = AgentHistoryList('completed', 't', 't', 1, 1.0, usage, 0.0, None, None, [], True)
@@ -356,7 +356,7 @@ def test_0x_names_from_every_tag_name_their_replacement():
 		(lambda: Agent('t', script()[0], validate_output=True), TypeError, r'Agent\(validate_output=\.\.\.\) .*result\.success'),
 		(lambda: Agent('t', script()[0], browser_context=object()), TypeError, r'In 1\.0: pass a Browser'),
 		(lambda: Agent('t', script()[0], tool_calling_method='auto'), TypeError, r'Agent\(tool_calling_method=\.\.\.\)'),
-		(lambda: agent.logger, AttributeError, r"Agent\.logger\(\) .*getLogger\('browser_use'\)"),
+		(lambda: agent.logger, AttributeError, r"Agent\.logger\(\) .*getLogger\('browse_dev'\)"),
 		(lambda: agent.get_model_output, AttributeError, r'Agent\.get_model_output\(\) .*Python cells'),
 		(lambda: Browser(local=True).new_context, AttributeError, r'Browser\.new_context .*raw CDP'),
 		(lambda: Browser().get_or_create_cdp_session, AttributeError, r'Browser\.get_or_create_cdp_session '),
@@ -367,8 +367,8 @@ def test_0x_names_from_every_tag_name_their_replacement():
 		(lambda: tools.exclude_action, AttributeError, r'Tools\.exclude_action\(\) .*no built-in actions'),
 		(lambda: ActionResult(images=[{'name': 'a.png', 'data': 'iVBORw0KGgo'}]), RemovedField, r'ActionResult\(images=\.\.\.\)'),
 		(lambda: llm.openai_gpt_4o, AttributeError, r"llm\.openai_gpt_4o .*ChatOpenAI\('gpt-4o'\)"),
-		(lambda: exec('from browser_use.llm import google_gemini_2_5_flash'), ImportError, r'ChatGoogle'),
-		(lambda: exec('from browser_use.llm import get_llm_by_name'), ImportError, r"llm='openai:gpt-4o'"),
+		(lambda: exec('from browse_dev.llm import google_gemini_2_5_flash'), ImportError, r'ChatGoogle'),
+		(lambda: exec('from browse_dev.llm import get_llm_by_name'), ImportError, r"llm='openai:gpt-4o'"),
 		# the settings= answer for temperature failed live: Anthropic 400s it on Claude 4.x, after the browser started
 		(lambda: ChatAnthropic('claude-sonnet-4-0', temperature=0.0), TypeError, r"In 1\.0: delete it: Anthropic's API rejects"),
 		(lambda: ChatGoogle('gemini-flash-latest', temperature=1.0), TypeError, r"GoogleModel\('gemini-\.\.\.', settings="),
@@ -376,7 +376,7 @@ def test_0x_names_from_every_tag_name_their_replacement():
 	for fn, error, match in cases:
 		with pytest.raises(error, match=match) as raised:
 			fn()
-		assert 'was removed in browser-use 1.0' in str(raised.value), match
+		assert 'was removed in browse-dev 1.0' in str(raised.value), match
 	assert not hasattr(llm, 'not_a_model') and not hasattr(Browser(local=True), 'not_a_0x_member')
 
 
@@ -404,7 +404,7 @@ def test_printing_a_result_leaves_out_the_transcript():
 def test_0x_api_shapes_raise_the_removed_error(no_browser):
 	"""M36: these 0.x shapes gave bare TypeError / AttributeError / ImportError instead of the removed error naming the
 	1.0 alternative."""
-	from browser_use import ChatBrowserUse, ChatOpenAI
+	from browse_dev import ChatBrowseDev, ChatOpenAI
 
 	usage = {'input': 1, 'output': 1, 'cache_read': 0, 'cache_write': 0, 'requests': 1}
 	result = AgentHistoryList('completed', 't', 't', 1, 1.0, usage, 0.0, None, None, [], True)
@@ -413,7 +413,7 @@ def test_0x_api_shapes_raise_the_removed_error(no_browser):
 		(lambda: ChatAnthropic('claude-haiku-5-5', temperature=0.0), TypeError, r'ChatAnthropic\(temperature=\.\.\.\)'),
 		(lambda: ChatGoogle('gemini-3.5-flash', thinking_budget=0), TypeError, r'ChatGoogle\(thinking_budget='),
 		(lambda: ChatOpenAI('gpt-6-luna', seed=1), TypeError, r'ChatOpenAI\(seed='),
-		(lambda: ChatBrowserUse(fast=True), TypeError, r"In 1\.0: model='bu-ultrafast'"),
+		(lambda: ChatBrowseDev(fast=True), TypeError, r"In 1\.0: model='bu-ultrafast'"),
 		(lambda: Tools(exclude_actions=['x']), TypeError, r'Tools\(exclude_actions='),
 		(lambda: Controller(output_model=int), TypeError, r'In 1\.0: Agent\(output_model_schema=\.\.\.\)'),
 		(lambda: Browser(local=True).stop_session, AttributeError, r'Browser\.stop_session .*await browser\.stop\(\)'),
@@ -427,48 +427,48 @@ def test_0x_api_shapes_raise_the_removed_error(no_browser):
 		(lambda: result.model_dump(), AttributeError, r'AgentHistoryList\.model_dump '),
 		(lambda: result.total_input_tokens(), AttributeError, r"usage\['input'\]"),
 		(
-			lambda: __import__('browser_use.browser', fromlist=['BrowserSession']).BrowserSession,
+			lambda: __import__('browse_dev.browser', fromlist=['BrowserSession']).BrowserSession,
 			ImportError,
 			r'Browser\(\.\.\.\)',
 		),
 		# C63: the 0.1.x import path gave a raw ImportError naming site-packages; Browser(config=) a generic message
-		(lambda: exec('from browser_use.browser.browser import BrowserConfig'), ImportError, r'BrowserConfig was removed'),
+		(lambda: exec('from browse_dev.browser.browser import BrowserConfig'), ImportError, r'BrowserConfig was removed'),
 		(lambda: Browser(config=object()), TypeError, r'^Browser\(config=\.\.\.\) was removed'),
 	]
 	for fn, error, match in cases:
 		with pytest.raises(error, match=match) as raised:
 			fn()
-		assert 'was removed in browser-use 1.0' in str(raised.value), match
+		assert 'was removed in browse-dev 1.0' in str(raised.value), match
 	assert result and result.usage == usage and result.usage['input'] == 1  # still a plain dict to read
 	with pytest.raises(AttributeError, match="no attribute 'nope'"):
 		Browser(local=True).nope
 
 
 def test_version_is_the_installed_package_version():
-	"""C63: browser_use.__version__ raised AttributeError; only importlib.metadata knew it."""
+	"""C63: browse_dev.__version__ raised AttributeError; only importlib.metadata knew it."""
 	from importlib.metadata import version
 
-	import browser_use
+	import browse_dev
 
-	assert browser_use.__version__ == version('browser-use')
+	assert browse_dev.__version__ == version('browse-dev')
 
 
 def test_version_of_a_checkout_that_is_not_installed_is_unknown(monkeypatch):
-	"""Review: PackageNotFoundError (an ImportError) escaped __version__, so hasattr(browser_use, '__version__') raised."""
+	"""Review: PackageNotFoundError (an ImportError) escaped __version__, so hasattr(browse_dev, '__version__') raised."""
 	from importlib.metadata import PackageNotFoundError
 
-	import browser_use
-	from browser_use import utils
+	import browse_dev
+	from browse_dev import utils
 
 	def missing(name):
 		raise PackageNotFoundError(name)
 
 	monkeypatch.setattr(utils, 'version', missing)
-	utils.get_browser_use_version.cache_clear()
+	utils.get_browse_dev_version.cache_clear()
 	try:
-		assert browser_use.__version__ == 'unknown' and hasattr(browser_use, '__version__')
+		assert browse_dev.__version__ == 'unknown' and hasattr(browse_dev, '__version__')
 	finally:
-		utils.get_browser_use_version.cache_clear()
+		utils.get_browse_dev_version.cache_clear()
 
 
 def test_docs_say_the_default_workspace_is_kept():
@@ -558,7 +558,7 @@ async def test_tools_params_0x_never_injected_come_from_the_model(tmp_path):
 	from conftest import script
 	from test_compaction import FakeRepl
 
-	from browser_use.agent.loop import Session, build_agent, run
+	from browse_dev.agent.loop import Session, build_agent, run
 
 	tools, got = Tools(), []
 
@@ -620,7 +620,7 @@ async def test_removed_action_result_fields_raise_and_end_the_run(tmp_path):
 	tools.action('Done')(ns['done'])  # no source to read at registration: refused when the action returns it
 	model, _ = script(('done', {}))
 	r = await run(build_agent(model, tools=tools.functions), 'task', Session(repl=Repl(tmp_path)), 'm')
-	assert r.status == 'error' and 'ActionResult(is_done=...) was removed in browser-use 1.0' in (r.error or '')
+	assert r.status == 'error' and 'ActionResult(is_done=...) was removed in browse-dev 1.0' in (r.error or '')
 
 
 async def test_0x_action_result_defaults_never_end_the_run_and_done_actions_are_refused_when_registered(tmp_path):
@@ -681,9 +681,9 @@ def _with_source(fn, source: str):
 def test_action_result_include_extracted_content_only_once_says_it_is_ignored(monkeypatch, caplog):
 	"""rr-legacy 4: ActionResult(include_extracted_content_only_once=True) (the 0.x way to keep a big extract out of
 	later steps) was accepted without a word, and the content stayed in context."""
-	monkeypatch.setattr(logging.getLogger('browser_use'), 'propagate', True)  # caplog listens on the root logger
+	monkeypatch.setattr(logging.getLogger('browse_dev'), 'propagate', True)  # caplog listens on the root logger
 	result = ActionResult(extracted_content='x', long_term_memory='short', include_extracted_content_only_once=True)
-	assert 'ActionResult(include_extracted_content_only_once=...) is ignored in browser-use 1.0' in caplog.text
+	assert 'ActionResult(include_extracted_content_only_once=...) is ignored in browse-dev 1.0' in caplog.text
 	assert result.model_dump(exclude_none=True) == {'extracted_content': 'x', 'long_term_memory': 'short'}
 
 
@@ -691,7 +691,7 @@ async def test_action_result_include_in_memory_warns_and_the_run_goes_on(tmp_pat
 	"""rr-legacy L08 / error contract: a 0.x action returning ActionResult(include_in_memory=True) (examples/custom-functions
 	style) ended the run with status 'error' after the browser had started and was billed. 1.0 keeps every result in the
 	conversation, so the field is ignored with a warning and the model gets the result."""
-	monkeypatch.setattr(logging.getLogger('browser_use'), 'propagate', True)  # caplog listens on the root logger
+	monkeypatch.setattr(logging.getLogger('browse_dev'), 'propagate', True)  # caplog listens on the root logger
 	tools = Tools()
 
 	@tools.action('Stock level of a product')
@@ -702,7 +702,7 @@ async def test_action_result_include_in_memory_warns_and_the_run_goes_on(tmp_pat
 	r = await run(build_agent(model, tools=tools.functions), 'task', Session(repl=Repl(tmp_path)), 'm')
 	assert r.status == 'completed' and r.final_result() == '7', r.error
 	assert 'Red Mug: 7 in stock' in str(seen[1][-1])
-	assert 'ActionResult(include_in_memory=...) is ignored in browser-use 1.0' in caplog.text
+	assert 'ActionResult(include_in_memory=...) is ignored in browse-dev 1.0' in caplog.text
 
 
 async def test_custom_action_is_a_model_tool(tmp_path):
@@ -898,8 +898,8 @@ async def test_cost_is_priced_with_the_models_provider(llm, fake_browser, tmp_pa
 	from pydantic_ai.messages import ModelResponse, TextPart
 	from pydantic_ai.usage import RequestUsage
 
-	import browser_use.agent.service as service
-	from browser_use.agent.loop import usage_and_cost
+	import browse_dev.agent.service as service
+	from browse_dev.agent.loop import usage_and_cost
 
 	refs = []
 
@@ -998,7 +998,7 @@ def test_an_agent_dropped_without_close_ends_its_repl_worker(fake_browser, tmp_p
 	import gc
 	import subprocess
 
-	from browser_use.repl.session import _WORKERS
+	from browse_dev.repl.session import _WORKERS
 
 	model, _ = script(('python', {'code': 'x = 1'}), ('finish', {'success': True, 'result': 'one'}))
 	agent = Agent('t', model, browser=Browser(local=True, keep_alive=True), workspace=tmp_path)
@@ -1096,7 +1096,7 @@ def test_cost_is_the_price_of_the_model_that_answered():
 	from pydantic_ai.messages import ModelResponse, TextPart
 	from pydantic_ai.usage import RequestUsage
 
-	from browser_use.agent.loop import usage_and_cost
+	from browse_dev.agent.loop import usage_and_cost
 
 	u = RequestUsage(input_tokens=1_000_000, output_tokens=100_000)
 	served = float(calc_price(u, model_ref='gemini-2.5-flash', provider_id='google').total_price)
@@ -1116,7 +1116,7 @@ def test_cost_includes_cache_writes():
 	from pydantic_ai.messages import ModelResponse, TextPart
 	from pydantic_ai.usage import RequestUsage
 
-	from browser_use.agent.loop import usage_and_cost
+	from browse_dev.agent.loop import usage_and_cost
 
 	u = RequestUsage(input_tokens=6000, cache_write_tokens=5000, cache_read_tokens=0, output_tokens=500)
 	usage, cost = usage_and_cost([ModelResponse(parts=[TextPart('x')], usage=u)], 'anthropic:claude-sonnet-4-5')
@@ -1127,8 +1127,8 @@ def test_cost_includes_cache_writes():
 
 
 def test_action_result_imports_from_its_0x_location():
-	"""Fable r2-7: `from browser_use.agent.views import ActionResult` (0.x's canonical import) raised ImportError."""
-	from browser_use.agent.views import ActionResult as Old
+	"""Fable r2-7: `from browse_dev.agent.views import ActionResult` (0.x's canonical import) raised ImportError."""
+	from browse_dev.agent.views import ActionResult as Old
 
 	assert Old is ActionResult
 
@@ -1195,14 +1195,14 @@ def test_unknown_reasoning_raises_before_any_browser(reasoning, no_browser):
 async def test_old_mcp_tool_names_return_the_removed_error():
 	from mcp import types
 
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	handler = cli_mcp.CLIMCPServer().server._request_handlers['tools/call'].handler
-	for name in ('browser_navigate', 'browser_click', 'retry_with_browser_use_agent'):
+	for name in ('browser_navigate', 'browser_click', 'retry_with_browse_dev_agent'):
 		r = await handler(None, types.CallToolRequestParams(name=name, arguments={}))
 		text = r.content[0].text  # type: ignore[union-attr]
 		assert r.is_error and text.startswith(
-			f'The MCP tool {name} (the 0.x browser-use --mcp server) was removed in browser-use 1.0.'
+			f'The MCP tool {name} (the 0.x browse-dev --mcp server) was removed in browse-dev 1.0.'
 		)
 		assert 'browser_exec runs Python' in text
 	r = await handler(None, types.CallToolRequestParams(name='nope', arguments={}))
@@ -1215,8 +1215,8 @@ async def test_browser_exec_output_is_capped_like_agent_cells():
 
 	from mcp import types
 
-	from browser_use.mcp import cli_mcp
-	from browser_use.repl.session import MAX_OUTPUT_CHARS
+	from browse_dev.mcp import cli_mcp
+	from browse_dev.repl.session import MAX_OUTPUT_CHARS
 
 	mcp = cli_mcp.CLIMCPServer()
 	# not in Windows' cp1252: the overflow file failed the whole call there; and Windows wrote each \n as \r\n
@@ -1237,7 +1237,7 @@ def test_browser_exec_error_shows_the_cells_frames_not_browser_harness_internals
 	_runtime_value) between the cell's line and the error, which says it all."""
 	from browser_harness import helpers
 
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	fake: dict = {}  # the daemon's answer, raised in browser-harness's helpers.py as its _send raises it
 	error = 'JavaScript evaluation failed at line 0, column 5: SyntaxError: Unexpected end of input'

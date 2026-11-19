@@ -60,9 +60,9 @@ jobs:
             actions: read
           claude_env: |
             IN_DOCKER: 'true'
-            BROWSER_USE_CLOUD_SYNC: 'false'
+            BROWSE_DEV_CLOUD_SYNC: 'false'
             ANONYMIZED_TELEMETRY: 'false'
-            BROWSER_USE_LOGGING_LEVEL: 'DEBUG'
+            BROWSE_DEV_LOGGING_LEVEL: 'DEBUG'
           settings: |
             {
               "permissions": {

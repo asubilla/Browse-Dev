@@ -1,5 +1,5 @@
 name: 👾 Library Bug Report
-description: Report a bug in the browser-use Python library
+description: Report a bug in the browse-dev Python library
 labels: ["bug", "triage"]
 title: "Bug: ..."
 body:
@@ -12,9 +12,9 @@ body:
   - type: input
     id: version
     attributes:
-      label: Browser Use Version
+      label: Browse Dev Version
       description: |
-        What exact version of `browser-use` are you using? (Run `uv pip show browser-use` or `git log -n 1`)
+        What exact version of `browse-dev` are you using? (Run `uv pip show browse-dev` or `git log -n 1`)
         **DO NOT WRITE `latest release` or `main` or a very old version or we will close your issue!**
       placeholder: "e.g. 0.4.45 or 62760baaefd"
     validations:
@@ -26,7 +26,7 @@ body:
       label: Bug Description, Steps to Reproduce, Screenshots
       description: A clear and concise description of what the bug is + steps taken, drag screenshots in showing any error messages and relevant pages.
       placeholder: |
-        1. Installed browser-use library by running: `uv pip install browser-use`
+        1. Installed browse-dev library by running: `uv pip install browse-dev`
         2. Installed the browser by running: `playwright install chromium --with-deps`
         3. Ran the code below with the following prompt: `go to example.com and do xyz...`
         4. Agent crashed and showed the following error: ...
@@ -42,7 +42,7 @@ body:
       placeholder: |
         from dotenv import load_dotenv
         load_dotenv()  # tip: always load_dotenv() before other imports
-        from browser_use import Agent, Browser, ChatOpenAI
+        from browse_dev import Agent, Browser, ChatOpenAI
 
         agent = Agent(
             task='...',
@@ -56,7 +56,7 @@ body:
     attributes:
       label: LLM Model
       description: Which LLM model are you using? (Optional)
-      placeholder: "e.g. ChatBrowserUse, gpt-4.1-mini, gemini-3-flash-preview, etc."
+      placeholder: "e.g. ChatBrowseDev, gpt-4.1-mini, gemini-3-flash-preview, etc."
 
   - type: input
     id: os
@@ -69,8 +69,8 @@ body:
     id: logs
     attributes:
       label: Full DEBUG Log Output
-      description: Please copy and paste the log output. Make sure to set `BROWSER_USE_LOGGING_LEVEL=DEBUG` in your `.env` or shell environment.
+      description: Please copy and paste the log output. Make sure to set `BROWSE_DEV_LOGGING_LEVEL=DEBUG` in your `.env` or shell environment.
       render: shell
       placeholder: |
-        $ python /app/browser-use/examples/browser/real_browser.py
+        $ python /app/browse-dev/examples/browser/real_browser.py
         DEBUG    [browser] 🌎  Initializing new browser

@@ -1,4 +1,4 @@
-"""Links in what browser-use prints: a terminal makes every character up to the next space part of the link, so a
+"""Links in what browse-dev prints: a terminal makes every character up to the next space part of the link, so a
 period, comma or parenthesis right after a URL breaks it ("...MIGRATING.md." opens a 404)."""
 
 import ast
@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-PACKAGE = Path(__file__).resolve().parents[2] / 'browser_use'
+PACKAGE = Path(__file__).resolve().parents[2] / 'browse_dev'
 URL = re.compile(r'https?://[^\s\'"`]+')  # a quote ends it: example code such as Browser(cdp_url='https://...')
 URL_NAME = re.compile(r'(^|_)URL$')
 
@@ -66,9 +66,9 @@ def test_no_message_glues_a_character_to_a_link():
 
 
 def _cloud_error(monkeypatch, status: int, detail: bytes) -> str:
-	from browser_use.browser import browser as browser_mod
+	from browse_dev.browser import browser as browser_mod
 
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'bu_' + 'x' * 40)
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'bu_' + 'x' * 40)
 
 	def fail(req, timeout=None):
 		raise urllib.error.HTTPError(req.full_url, status, 'x', {}, io.BytesIO(detail))  # type: ignore[arg-type]
@@ -90,12 +90,12 @@ def test_a_cloud_error_that_ends_with_a_link_keeps_the_link_whole(monkeypatch):
 def test_the_harness_cloud_start_error_keeps_a_trailing_link_whole(monkeypatch):
 	from browser_harness import admin
 
-	from browser_use import harness_cloud
+	from browse_dev import harness_cloud
 
 	def refuse(*args, **kwargs):
 		raise urllib.error.HTTPError('u', 402, 'x', {}, io.BytesIO(b'Top up at https://cloud.browser-use.com/billing.'))  # type: ignore[arg-type]
 
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'bu_' + 'x' * 40)
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'bu_' + 'x' * 40)
 	monkeypatch.setattr(admin, 'start_remote_daemon', refuse)
 	monkeypatch.setattr(admin, 'daemon_alive', lambda name=None: False, raising=False)
 	with pytest.raises(harness_cloud.CloudBrowserError) as raised:

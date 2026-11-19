@@ -1,4 +1,4 @@
-"""`browser-use login`, the browser_login MCP tool and the shared key store, against a fake Browser Use auth server.
+"""`browse-dev login`, the browser_login MCP tool and the shared key store, against a fake Browse Dev auth server.
 
 The fake server speaks the cloud's /cloud/cli-auth contract (browser OAuth with PKCE). "The user approves" is a GET of
 the CLI's loopback callback, as the approve page's redirect does. No test opens a real browser or reads a real key.
@@ -83,7 +83,7 @@ def store(tmp_path, monkeypatch):
 	"""A private key store and no key in the environment."""
 	path = tmp_path / 'browser-harness' / 'auth.json'
 	monkeypatch.setenv('BH_AUTH_PATH', str(path))
-	monkeypatch.delenv('BROWSER_USE_API_KEY', raising=False)
+	monkeypatch.delenv('BROWSE_DEV_API_KEY', raising=False)
 	return path
 
 
@@ -94,7 +94,8 @@ def auth_server(monkeypatch):
 
 	def start(auto_approve: bool) -> FakeAuthServer:
 		servers.append(FakeAuthServer(auto_approve))
-		monkeypatch.setenv('BROWSER_USE_CLOUD_API_URL', servers[-1].url)
+		monkeypatch.setenv('BROWSE_DEV_CLOUD_API_URL', servers[-1].url)
+		monkeypatch.setenv('BROWSER_USE_CLOUD_API_URL', servers[-1].url)  # browser-harness reads its own name
 		return servers[-1]
 
 	yield start
@@ -108,7 +109,7 @@ def _cli(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[st
 	env['PYTHONPATH'] = os.pathsep.join(part for part in (str(ROOT), env.get('PYTHONPATH', '')) if part)
 	env.pop('BH_DEVICE_NAME', None)
 	return subprocess.run(
-		[sys.executable, '-m', 'browser_use', *args], cwd=ROOT, env=env, input=stdin, capture_output=True, text=True, timeout=60
+		[sys.executable, '-m', 'browse_dev', *args], cwd=ROOT, env=env, input=stdin, capture_output=True, text=True, timeout=60
 	)
 
 
@@ -117,10 +118,10 @@ def test_login_stores_the_key_in_the_shared_store_without_printing_it(store, mon
 	result = _cli('login', '--no-open')
 	assert result.returncode == 0, result.stderr
 	assert FAKE_KEY not in result.stdout + result.stderr
-	assert server.starts[0]['client_id'] == 'browser-use-terminal' and server.starts[0]['device_name'] == 'browser-use'
-	assert 'Signed in' in result.stdout and 'browser-use --cli-mcp' in result.stdout
-	# rr-install 2: `python -c` named a command uv projects lack (`uv run browser-use login`); the code is the example
-	assert 'python -c' not in result.stdout and '  from browser_use import Agent\n' in result.stdout
+	assert server.starts[0]['client_id'] == 'browse-dev-terminal' and server.starts[0]['device_name'] == 'browse-dev'
+	assert 'Signed in' in result.stdout and 'browse-dev --cli-mcp' in result.stdout
+	# rr-install 2: `python -c` named a command uv projects lack (`uv run browse-dev login`); the code is the example
+	assert 'python -c' not in result.stdout and '  from browse_dev import Agent\n' in result.stdout
 	assert json.loads(store.read_text())['browser_use']['api_key'] == FAKE_KEY
 	if sys.platform != 'win32':
 		assert store.stat().st_mode & 0o077 == 0  # owner-only
@@ -128,13 +129,13 @@ def test_login_stores_the_key_in_the_shared_store_without_printing_it(store, mon
 	# One login works everywhere: the library, browser-harness, and the default model all read that store
 	from browser_harness.auth import get_browser_use_api_key
 
-	from browser_use.auth import browser_use_api_key
-	from browser_use.llm import ChatBrowserUse
+	from browse_dev.auth import browse_dev_api_key
+	from browse_dev.llm import ChatBrowseDev
 
-	assert browser_use_api_key() == get_browser_use_api_key() == FAKE_KEY
-	assert ChatBrowserUse().pydantic_model().client.api_key == FAKE_KEY
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'fake-env-key-wins-over-the-store')
-	assert browser_use_api_key() == 'fake-env-key-wins-over-the-store'
+	assert browse_dev_api_key() == get_browser_use_api_key() == FAKE_KEY
+	assert ChatBrowseDev().pydantic_model().client.api_key == FAKE_KEY
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'fake-env-key-wins-over-the-store')
+	assert browse_dev_api_key() == 'fake-env-key-wins-over-the-store'
 
 	result = _cli('logout')
 	assert result.returncode == 0 and '"logged-out"' in result.stdout
@@ -142,7 +143,8 @@ def test_login_stores_the_key_in_the_shared_store_without_printing_it(store, mon
 
 
 def test_login_failure_exits_nonzero_and_stores_nothing(store, monkeypatch):
-	monkeypatch.setenv('BROWSER_USE_CLOUD_API_URL', 'http://127.0.0.1:9')  # nothing listens: the start request fails
+	monkeypatch.setenv('BROWSE_DEV_CLOUD_API_URL', 'http://127.0.0.1:9')  # nothing listens: the start request fails
+	monkeypatch.setenv('BROWSER_USE_CLOUD_API_URL', 'http://127.0.0.1:9')  # browser-harness reads its own name
 	result = _cli('login', '--no-open')
 	assert result.returncode == 1 and 'network error' in result.stderr
 	assert 'Signed in' not in result.stdout
@@ -157,7 +159,7 @@ def test_ctrl_c_during_device_login_cancels_without_a_traceback(store, auth_serv
 	auth_server(auto_approve=False)
 	env = {**os.environ, 'PYTHONPATH': os.pathsep.join(p for p in (str(ROOT), os.environ.get('PYTHONPATH', '')) if p)}
 	proc = subprocess.Popen(
-		[sys.executable, '-m', 'browser_use', 'login', '--device-code', '--no-open'],
+		[sys.executable, '-m', 'browse_dev', 'login', '--device-code', '--no-open'],
 		cwd=ROOT,
 		env=env,
 		stdout=subprocess.PIPE,
@@ -184,7 +186,7 @@ def test_ctrl_c_during_device_login_cancels_without_a_traceback(store, auth_serv
 def test_ctrl_c_at_the_api_key_prompt_cancels_without_a_traceback(store, monkeypatch, capsys):
 	"""Ctrl-C at `login --api-key-stdin`'s hidden key prompt, or during its key check, printed a KeyboardInterrupt
 	traceback: only the approval wait was covered."""
-	from browser_use import auth, cli
+	from browse_dev import auth, cli
 
 	events = []
 	monkeypatch.setattr(auth, 'record_auth_event', lambda stage, **fields: events.append(stage))
@@ -206,27 +208,27 @@ def test_ctrl_c_at_the_api_key_prompt_cancels_without_a_traceback(store, monkeyp
 	assert events == ['login_started', 'login_cancelled']
 
 
-def test_login_help_names_browser_use(store):
+def test_login_help_names_browse_dev(store):
 	result = _cli('login', '--help')
 	assert result.returncode == 0
-	assert 'browser-use auth login' in result.stdout and 'browser-harness' not in result.stdout
+	assert 'browse-dev auth login' in result.stdout and 'browser-harness' not in result.stdout
 
 
 def test_missing_key_names_the_one_command(store):
-	from browser_use.auth import browser_use_api_key
-	from browser_use.exceptions import MissingAPIKeyError
+	from browse_dev.auth import browse_dev_api_key
+	from browse_dev.exceptions import MissingAPIKeyError
 
-	with pytest.raises(MissingAPIKeyError, match='BROWSER_USE_API_KEY'):
-		browser_use_api_key()
+	with pytest.raises(MissingAPIKeyError, match='BROWSE_DEV_API_KEY'):
+		browse_dev_api_key()
 	# piped CLI code: browser-harness's own message names `browser-harness auth login`, not on PATH for uv tool installs
-	result = _cli(stdin='start_remote_daemon("browser-use-tests-login")\n')
+	result = _cli(stdin='start_remote_daemon("browse-dev-tests-login")\n')
 	assert result.returncode == 1
-	assert 'Run `browser-use login`' in result.stderr and 'Traceback' not in result.stderr
+	assert 'Run `browse-dev login`' in result.stderr and 'Traceback' not in result.stderr
 
 
 @pytest.mark.parametrize('automatic', [False, True])
 def test_login_records_success_after_the_key_is_stored(store, monkeypatch, auth_server, automatic):
-	from browser_use import auth, cli
+	from browse_dev import auth, cli
 
 	server = auth_server(auto_approve=True)
 	events = []
@@ -240,8 +242,8 @@ def test_login_records_success_after_the_key_is_stored(store, monkeypatch, auth_
 def test_interactive_missing_key_opens_login_and_reuses_the_saved_key(store, monkeypatch, auth_server, capsys):
 	from browser_harness import auth as harness_auth
 
-	from browser_use import auth
-	from browser_use.llm import ChatBrowserUse
+	from browse_dev import auth
+	from browse_dev.llm import ChatBrowseDev
 
 	server = auth_server(auto_approve=True)
 	opened, events = [], []
@@ -250,8 +252,8 @@ def test_interactive_missing_key_opens_login_and_reuses_the_saved_key(store, mon
 	monkeypatch.setattr(auth, '_reported_key_sources', set())
 	monkeypatch.setattr(auth, 'record_auth_event', lambda stage, **fields: events.append(stage))
 	monkeypatch.setattr(harness_auth.webbrowser, 'open', lambda url: opened.append(url) or True)
-	assert ChatBrowserUse().pydantic_model().client.api_key == FAKE_KEY
-	assert ChatBrowserUse().pydantic_model().client.api_key == FAKE_KEY
+	assert ChatBrowseDev().pydantic_model().client.api_key == FAKE_KEY
+	assert ChatBrowseDev().pydantic_model().client.api_key == FAKE_KEY
 	assert len(opened) == len(server.starts) == 1
 	assert events == ['missing_key', 'login_started', 'login_succeeded', 'key_available']
 	output = capsys.readouterr()
@@ -269,16 +271,16 @@ def test_interactive_missing_key_opens_login_and_reuses_the_saved_key(store, mon
 	],
 )
 def test_automatic_login_requires_an_interactive_desktop(monkeypatch, terminal, ci, setting, display, allowed):
-	from browser_use import auth
+	from browse_dev import auth
 
 	monkeypatch.setattr(auth.sys, 'platform', 'linux')
 	monkeypatch.setattr(auth.sys.stdin, 'isatty', lambda: terminal)
-	for name in ('CI', 'GITHUB_ACTIONS', 'BROWSER_USE_AUTO_LOGIN', 'DISPLAY', 'WAYLAND_DISPLAY'):
+	for name in ('CI', 'GITHUB_ACTIONS', 'BROWSE_DEV_AUTO_LOGIN', 'DISPLAY', 'WAYLAND_DISPLAY'):
 		monkeypatch.delenv(name, raising=False)
 	if ci:
 		monkeypatch.setenv('CI', ci)
 	if setting:
-		monkeypatch.setenv('BROWSER_USE_AUTO_LOGIN', setting)
+		monkeypatch.setenv('BROWSE_DEV_AUTO_LOGIN', setting)
 	if display:
 		monkeypatch.setenv('DISPLAY', ':1')
 		monkeypatch.setenv('XDG_CURRENT_DESKTOP', 'GNOME')
@@ -287,11 +289,11 @@ def test_automatic_login_requires_an_interactive_desktop(monkeypatch, terminal, 
 
 
 def test_virtual_display_alone_does_not_start_login(monkeypatch):
-	from browser_use import auth
+	from browse_dev import auth
 
 	monkeypatch.setattr(auth.sys, 'platform', 'linux')
 	monkeypatch.setattr(auth.sys.stdin, 'isatty', lambda: True)
-	for name in ('CI', 'GITHUB_ACTIONS', 'XDG_CURRENT_DESKTOP', 'XDG_SESSION_TYPE', 'BROWSER_USE_AUTO_LOGIN'):
+	for name in ('CI', 'GITHUB_ACTIONS', 'XDG_CURRENT_DESKTOP', 'XDG_SESSION_TYPE', 'BROWSE_DEV_AUTO_LOGIN'):
 		monkeypatch.delenv(name, raising=False)
 	monkeypatch.setenv('DISPLAY', ':99')
 	assert not auth._can_open_login()
@@ -300,7 +302,7 @@ def test_virtual_display_alone_does_not_start_login(monkeypatch):
 def test_web_search_uses_the_same_login_flow_for_a_custom_model(store, monkeypatch, auth_server):
 	from conftest import script
 
-	from browser_use import Agent, Browser, auth
+	from browse_dev import Agent, Browser, auth
 
 	auth_server(auto_approve=True)
 	monkeypatch.setattr(auth, '_can_open_login', lambda: True)
@@ -313,8 +315,8 @@ def test_web_search_uses_the_same_login_flow_for_a_custom_model(store, monkeypat
 
 
 def test_failed_automatic_login_does_not_reopen_on_each_key_request(store, monkeypatch):
-	from browser_use import auth, cli
-	from browser_use.exceptions import MissingAPIKeyError
+	from browse_dev import auth, cli
+	from browse_dev.exceptions import MissingAPIKeyError
 
 	starts = []
 	monkeypatch.setattr(auth, '_can_open_login', lambda: True)
@@ -322,22 +324,23 @@ def test_failed_automatic_login_does_not_reopen_on_each_key_request(store, monke
 	monkeypatch.setattr(cli, '_run_login_command', lambda *args, **kwargs: starts.append(True) or 1)
 	for _ in range(2):
 		with pytest.raises(MissingAPIKeyError):
-			auth.browser_use_api_key(auto_login=True)
+			auth.browse_dev_api_key(auto_login=True)
 	assert starts == [True] and not store.exists()
 
 
 def test_failed_login_records_failure_without_claiming_a_stored_key(store, monkeypatch):
-	from browser_use import auth, cli
+	from browse_dev import auth, cli
 
 	events = []
-	monkeypatch.setenv('BROWSER_USE_CLOUD_API_URL', 'http://127.0.0.1:9')
+	monkeypatch.setenv('BROWSE_DEV_CLOUD_API_URL', 'http://127.0.0.1:9')
+	monkeypatch.setenv('BROWSER_USE_CLOUD_API_URL', 'http://127.0.0.1:9')  # browser-harness reads its own name
 	monkeypatch.setattr(auth, 'record_auth_event', lambda stage, **fields: events.append(stage))
 	assert cli._run_login_command(['--no-open']) == 1
 	assert events == ['login_started', 'login_failed'] and not store.exists()
 
 
 def test_a_stored_key_goes_to_the_server_whatever_its_scopes_and_a_scope_403_asks_for_a_new_login(store, monkeypatch):
-	"""Scopes are the server's to judge: a local scope check would loop `browser-use login` on any scope name it did
+	"""Scopes are the server's to judge: a local scope check would loop `browse-dev login` on any scope name it did
 	not expect. An older login's v3 key reaches API v4, and its 403 names the fix."""
 	import io
 	import urllib.error
@@ -345,12 +348,12 @@ def test_a_stored_key_goes_to_the_server_whatever_its_scopes_and_a_scope_403_ask
 
 	from browser_harness.auth import AuthRecord, save_auth_record
 
-	from browser_use.auth import browser_use_api_key
-	from browser_use.browser import browser as browser_mod
+	from browse_dev.auth import browse_dev_api_key
+	from browse_dev.browser import browser as browser_mod
 
 	for scopes in (['v3:browsers:create', 'v3:profiles:read'], ['browsers:create'], ['*:*:*'], []):
 		save_auth_record(AuthRecord(api_key=FAKE_KEY, scopes=scopes))
-		assert browser_use_api_key() == FAKE_KEY
+		assert browse_dev_api_key() == FAKE_KEY
 
 	def forbidden(req, timeout=None):
 		assert req.get_header('X-browser-use-api-key') == FAKE_KEY
@@ -361,11 +364,11 @@ def test_a_stored_key_goes_to_the_server_whatever_its_scopes_and_a_scope_403_ask
 	monkeypatch.setattr(browser_mod, 'urlopen_keyed', forbidden)
 	with pytest.raises(RuntimeError, match='HTTP 403') as raised:
 		browser_mod._cloud('/browsers', 'POST', {})
-	assert 'Run `browser-use login` again' in str(raised.value) and FAKE_KEY not in str(raised.value)
+	assert 'Run `browse-dev login` again' in str(raised.value) and FAKE_KEY not in str(raised.value)
 
 
 def test_mcp_browser_login_finishes_across_calls_and_never_returns_the_key(store, monkeypatch, auth_server):
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	server = auth_server(auto_approve=False)
 	opened: list[str] = []
@@ -375,20 +378,20 @@ def test_mcp_browser_login_finishes_across_calls_and_never_returns_the_key(store
 	mcp = cli_mcp.CLIMCPServer()
 
 	# Not signed in: browser_exec says which tool fixes it
-	output = mcp._execute('start_remote_daemon("browser-use-tests-login")')[0]
+	output = mcp._execute('start_remote_daemon("browse-dev-tests-login")')[0]
 	assert cli_mcp.LOGIN_HINT in output
 
 	first = mcp._sign_in(force=False, wait=0.2)
 	assert 'Waiting for the user to approve' in first and 'call browser_login again' in first.lower()
 	assert opened == [f'{server.url}/device/authorize?state={server.starts[0]["state"]}'] and opened[0] in first
-	assert server.starts[0]['device_name'] == 'browser-use-mcp'
+	assert server.starts[0]['device_name'] == 'browse-dev-mcp'
 
 	assert mcp._sign_in(force=False, wait=0.2) == first  # still pending: no second login is started
 	assert len(server.starts) == 1
 
 	server.approve()
 	done = mcp._sign_in(force=False, wait=10)
-	assert done.startswith('Signed in to Browser Use Cloud')
+	assert done.startswith('Signed in to Browse Dev Cloud')
 	assert json.loads(store.read_text())['browser_use']['api_key'] == FAKE_KEY
 	assert FAKE_KEY not in first + done
 
@@ -397,7 +400,7 @@ def test_mcp_browser_login_finishes_across_calls_and_never_returns_the_key(store
 
 
 def test_mcp_browser_login_reports_a_denied_approval(store, monkeypatch, auth_server):
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	server = auth_server(auto_approve=False)
 	monkeypatch.setattr(cli_mcp, '_open_url', lambda url: False)
@@ -407,21 +410,21 @@ def test_mcp_browser_login_reports_a_denied_approval(store, monkeypatch, auth_se
 	start = server.starts[0]
 	urllib.request.urlopen(f'{start["redirect_uri"]}?error=access_denied&state={start["state"]}', timeout=10).read()
 	result = mcp._sign_in(force=False, wait=10)
-	assert result.startswith('Browser Use Cloud login failed: auth failed: access_denied')
+	assert result.startswith('Browse Dev Cloud login failed: auth failed: access_denied')
 	assert not store.exists()
 
 
 def test_mcp_browser_login_with_an_env_key(store, monkeypatch):
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'fake-env-key')
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'fake-env-key')
 	mcp = cli_mcp.CLIMCPServer()
-	assert 'key from BROWSER_USE_API_KEY' in mcp._sign_in(force=False, wait=0)
-	assert 'BROWSER_USE_API_KEY is set' in mcp._sign_in(force=True, wait=0)  # a new stored key would not be used
+	assert 'key from BROWSE_DEV_API_KEY' in mcp._sign_in(force=False, wait=0)
+	assert 'BROWSE_DEV_API_KEY is set' in mcp._sign_in(force=True, wait=0)  # a new stored key would not be used
 
 
 async def test_mcp_lists_browser_login():
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	names = [tool.name for tool in cli_mcp.CLIMCPServer()._tool_definitions()]
 	assert names == ['browser_exec', 'browser_screenshot', 'browser_login', 'browser_feedback']
@@ -431,36 +434,36 @@ def test_logout_prints_the_real_store_path_and_version_names_both_packages(store
 	from importlib.metadata import version
 
 	store.parent.mkdir(parents=True)
-	store.write_text(json.dumps({'browser_use': {'api_key': FAKE_KEY}}))
+	store.write_text(json.dumps({'browse_dev': {'api_key': FAKE_KEY}}))
 	result = _cli('logout')
 	assert result.returncode == 0 and json.loads(result.stdout)['path'] == str(store)  # .../browser-harness/auth.json
 
 	result = _cli('--version')
-	assert result.stdout.strip() == f'browser-use {version("browser-use")} (browser-harness {version("browser-harness")})'
+	assert result.stdout.strip() == f'browse-dev {version("browse-dev")} (browser-harness {version("browser-harness")})'
 
 
 def test_a_key_with_whitespace_inside_never_appears_in_an_error_or_the_store(store, monkeypatch):
 	"""H4: a key with a newline inside was stored by login and sent as is; urllib/http.client then raised "Invalid
 	header value b'bu_...'" with the whole key, from the cloud browser, the gateway preflight and start_remote_daemon."""
-	from browser_use import Browser, ChatBrowserUse, harness_cloud
-	from browser_use.auth import browser_use_api_key
-	from browser_use.exceptions import MissingAPIKeyError
+	from browse_dev import Browser, ChatBrowseDev, harness_cloud
+	from browse_dev.auth import browse_dev_api_key
+	from browse_dev.exceptions import MissingAPIKeyError
 
 	bad = FAKE_KEY[:20] + '\nsecond-line' + FAKE_KEY[20:]
 	result = _cli('login', '--api-key-stdin', stdin=bad + '\n')
 	assert result.returncode == 1 and 'line break' in result.stderr and not store.exists()
 	assert FAKE_KEY[:20] not in result.stderr + result.stdout
 
-	monkeypatch.setenv('BROWSER_USE_API_KEY', FAKE_KEY + '\n')  # a trailing newline (echo, a file) is just stripped
-	assert browser_use_api_key() == FAKE_KEY
-	monkeypatch.setenv('BROWSER_USE_API_KEY', FAKE_KEY + '\u00e9')  # http.client would send it as latin-1
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', FAKE_KEY + '\n')  # a trailing newline (echo, a file) is just stripped
+	assert browse_dev_api_key() == FAKE_KEY
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', FAKE_KEY + '\u00e9')  # http.client would send it as latin-1
 	with pytest.raises(MissingAPIKeyError, match='non-ASCII'):
-		browser_use_api_key()
-	monkeypatch.setenv('BROWSER_USE_API_KEY', bad)
+		browse_dev_api_key()
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', bad)
 	for fail in (
-		browser_use_api_key,
-		lambda: ChatBrowserUse(api_key=bad),
-		lambda: ChatBrowserUse().preflight(),
+		browse_dev_api_key,
+		lambda: ChatBrowseDev(api_key=bad),
+		lambda: ChatBrowseDev().preflight(),
 		lambda: __import__('asyncio').run(Browser().start()),
 	):
 		with pytest.raises(MissingAPIKeyError) as raised:
@@ -473,7 +476,7 @@ def test_a_key_with_whitespace_inside_never_appears_in_an_error_or_the_store(sto
 	assert 'line break' in str(raised.value) and FAKE_KEY[:20] not in str(raised.value)
 
 
-def test_api_key_stdin_stores_only_a_browser_use_key(store, auth_server):
+def test_api_key_stdin_stores_only_a_browse_dev_key(store, auth_server):
 	auth_server(auto_approve=False)
 	result = _cli('login', '--api-key-stdin', stdin='sk-' + 'x' * 40)
 	assert result.returncode == 1 and 'start with bu_' in result.stderr and 'Signed in' not in result.stdout
@@ -489,7 +492,7 @@ def test_api_key_stdin_stores_only_a_browser_use_key(store, auth_server):
 
 
 def test_auth_login_checks_the_key_like_login(store, auth_server):
-	"""rr-climcp 2: `browser-use auth login --api-key-stdin` (the form the bundled SKILL.md teaches) went straight to
+	"""rr-climcp 2: `browse-dev auth login --api-key-stdin` (the form the bundled SKILL.md teaches) went straight to
 	browser-harness: a key the cloud rejects was stored, 'authenticated', exit 0."""
 	auth_server(auto_approve=False)
 	result = _cli('auth', 'login', '--api-key-stdin', stdin='bu_' + 'g' * 40)
@@ -504,27 +507,27 @@ def test_auth_login_checks_the_key_like_login(store, auth_server):
 
 def test_a_corrupt_key_store_is_named_and_login_or_logout_repairs_it(store, auth_server):
 	auth_server(auto_approve=False)
-	from browser_use.auth import browser_use_api_key
-	from browser_use.exceptions import MissingAPIKeyError
+	from browse_dev.auth import browse_dev_api_key
+	from browse_dev.exceptions import MissingAPIKeyError
 
 	store.parent.mkdir(parents=True)
-	store.write_text('{"browser_use": {"api_key": "bu_trunc')
+	store.write_text('{"browse_dev": {"api_key": "bu_trunc')
 	with pytest.raises(MissingAPIKeyError, match='is corrupt') as raised:
-		browser_use_api_key()
-	assert str(store) in str(raised.value) and 'browser-use login' in str(raised.value)
+		browse_dev_api_key()
+	assert str(store) in str(raised.value) and 'browse-dev login' in str(raised.value)
 
 	result = _cli('login', '--api-key-stdin', stdin=FAKE_KEY)
 	assert result.returncode == 0, result.stderr
 	assert json.loads(store.read_text())['browser_use']['api_key'] == FAKE_KEY
-	assert store.with_name('auth.json.corrupt').read_text().startswith('{"browser_use"')  # kept, not lost
+	assert store.with_name('auth.json.corrupt').read_text().startswith('{"browse_dev"')  # kept, not lost
 
 	store.write_text('["a list, not an object"]')  # low: AttributeError 'list' object has no attribute 'get'
 	with pytest.raises(MissingAPIKeyError, match='is corrupt'):
-		browser_use_api_key()
+		browse_dev_api_key()
 	result = _cli('login', '--api-key-stdin', stdin=FAKE_KEY)
 	assert result.returncode == 0, result.stderr
 	# review: the second corrupt store replaced the first backup, which may hold the only copy of a key
-	assert store.with_name('auth.json.corrupt').read_text().startswith('{"browser_use"')
+	assert store.with_name('auth.json.corrupt').read_text().startswith('{"browse_dev"')
 	assert store.with_name('auth.json.corrupt.2').read_text() == '["a list, not an object"]'
 
 	store.write_text('not json')
@@ -538,9 +541,9 @@ def test_a_rejected_key_names_the_login_command(store, monkeypatch):
 	import urllib.error
 	import urllib.request
 
-	from browser_use.browser import browser as browser_mod
+	from browse_dev.browser import browser as browser_mod
 
-	monkeypatch.setenv('BROWSER_USE_API_KEY', FAKE_KEY)
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', FAKE_KEY)
 
 	def unauthorized(req, timeout=None):
 		raise urllib.error.HTTPError(
@@ -552,7 +555,7 @@ def test_a_rejected_key_names_the_login_command(store, monkeypatch):
 		browser_mod._cloud('/browsers', 'POST', {})
 	message = str(raised.value)
 	assert 'Invalid API key, see ?tab=api-keys&new=1.' in message and '{' not in message  # the detail, not raw JSON
-	assert 'run `browser-use login`' in message and 'BROWSER_USE_API_KEY is set' in message and FAKE_KEY not in message
+	assert 'run `browse-dev login`' in message and 'BROWSE_DEV_API_KEY is set' in message and FAKE_KEY not in message
 
 	def sentence(req, timeout=None):  # rr-failure 7: a detail that ends its sentence printed '..'
 		raise urllib.error.HTTPError(req.full_url, 401, 'x', {}, io.BytesIO(b'{"detail": "Sign in first."}'))  # type: ignore[arg-type]
@@ -565,7 +568,7 @@ def test_a_rejected_key_names_the_login_command(store, monkeypatch):
 def test_a_callback_with_the_wrong_state_neither_completes_nor_aborts_the_login(store, monkeypatch, auth_server):
 	import urllib.error
 
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	server = auth_server(auto_approve=False)
 	monkeypatch.setattr(cli_mcp, '_open_url', lambda url: True)
@@ -577,5 +580,5 @@ def test_a_callback_with_the_wrong_state_neither_completes_nor_aborts_the_login(
 	assert raised.value.code == 400 and b'login complete' not in raised.value.read()
 
 	server.approve()  # the real approval still finishes the same login
-	assert mcp._sign_in(force=False, wait=10).startswith('Signed in to Browser Use Cloud')
+	assert mcp._sign_in(force=False, wait=10).startswith('Signed in to Browse Dev Cloud')
 	assert json.loads(store.read_text())['browser_use']['api_key'] == FAKE_KEY

@@ -1,5 +1,5 @@
 name: 📚 Documentation Issue
-description: Report an issue in the browser-use documentation
+description: Report an issue in the browse-dev documentation
 labels: ["documentation"]
 title: "Documentation: ..."
 body:

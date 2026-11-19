@@ -11,9 +11,9 @@ import pytest
 from conftest import script
 from pydantic import BaseModel
 
-from browser_use import Agent, Browser
-from browser_use.agent.loop import build_agent
-from browser_use.repl import Repl
+from browse_dev import Agent, Browser
+from browse_dev.agent.loop import build_agent
+from browse_dev.repl import Repl
 
 
 def prompts(messages):
@@ -92,6 +92,7 @@ async def test_keep_alive_keeps_browser_and_repl_between_runs(chrome, tmp_path):
 	assert browser.name is None and not admin.daemon_alive(name)
 
 
+@pytest.mark.skipif(__import__('sys').platform == 'win32', reason='needs POSIX signals to SIGKILL the Chrome daemon')
 async def test_a_keep_alive_browser_whose_daemon_died_between_runs_starts_in_the_agents_tab(chrome, tmp_path):
 	"""browser-1 follow-up: the daemon of a Browser(keep_alive=True) died between runs; start() started it again, its new
 	blank tab became the attached one, and the next run (the same Agent's follow-up, or a new Agent) saw about:blank:
@@ -144,16 +145,16 @@ async def test_a_run_logs_task_each_step_and_the_end(chrome, tmp_path, monkeypat
 	"""C08: a run printed nothing at INFO or DEBUG, and the 0.x step callbacks have no live replacement."""
 	import logging
 
-	monkeypatch.setattr(logging.getLogger('browser_use'), 'propagate', True)  # caplog listens on the root logger
+	monkeypatch.setattr(logging.getLogger('browse_dev'), 'propagate', True)  # caplog listens on the root logger
 	model, _ = script(
 		('python', {'code': '\npw = "hunter22"\n1 / 0'}),
 		('finish', {'success': True, 'result': 'done'}),
 	)
 	agent = Agent('Log in with hunter22', model, browser=Browser(cdp_url=chrome['http']), workspace=tmp_path,
 				  sensitive_data={'pw': 'hunter22'})  # fmt: skip
-	with caplog.at_level('INFO', logger='browser_use'):
+	with caplog.at_level('INFO', logger='browse_dev'):
 		assert (await agent.run()).final_result() == 'done'
-	lines = [r.getMessage() for r in caplog.records if r.name.startswith('browser_use.agent')]
+	lines = [r.getMessage() for r in caplog.records if r.name.startswith('browse_dev.agent')]
 	assert lines[:2] == [
 		f'Task: Log in with <secret:pw> (workspace {tmp_path.resolve()})',
 		'step 1: pw = "<secret:pw>" -> ZeroDivisionError: division by zero',
@@ -166,7 +167,7 @@ async def test_a_page_exception_in_the_step_log_cannot_drive_the_terminal(chrome
 	lines, set the window title or (OSC 52) wrote the clipboard. Control characters are shown escaped instead."""
 	import logging
 
-	root = logging.getLogger('browser_use')
+	root = logging.getLogger('browse_dev')
 	monkeypatch.setattr(root, 'propagate', True)  # caplog listens on the root logger
 	# what a page's own script throws (any DOM method the agent calls can be overridden to): ESC ]0; sets the title,
 	# ESC [2K erases the line. The model's code holds no escape: the page builds it.
@@ -175,17 +176,17 @@ async def test_a_page_exception_in_the_step_log_cannot_drive_the_terminal(chrome
 		('python', {'code': f'new_tab("about:blank")\njs("throw {esc}")'}), ('finish', {'success': True, 'result': 'done'})
 	)
 	agent = Agent('t', model, browser=Browser(cdp_url=chrome['http']), workspace=tmp_path)
-	with caplog.at_level('INFO', logger='browser_use'):
+	with caplog.at_level('INFO', logger='browse_dev'):
 		await agent.run()
 	(record,) = (r for r in caplog.records if r.getMessage().startswith('step 1:'))
 	assert '\\x1b]0;PWNED\\x07\\x1b[2KFAKE' in record.getMessage() and '\x1b' not in record.getMessage(), record.getMessage()
 	(handler,) = (h for h in root.handlers if isinstance(h, logging.StreamHandler) and h is not caplog.handler)
-	raw = logging.makeLogRecord({'name': 'browser_use.x', 'levelname': 'INFO', 'msg': 'page said \x1b]52;c;ZWNobw==\x07\x9b2K'})
-	assert handler.format(raw).endswith('page said \\x1b]52;c;ZWNobw==\\x07\\x9b2K')  # any browser_use line, C1 too
+	raw = logging.makeLogRecord({'name': 'browse_dev.x', 'levelname': 'INFO', 'msg': 'page said \x1b]52;c;ZWNobw==\x07\x9b2K'})
+	assert handler.format(raw).endswith('page said \\x1b]52;c;ZWNobw==\\x07\\x9b2K')  # any browse_dev line, C1 too
 
 
 async def test_your_chrome_reads_titles_unmarked_on_a_daemon_that_marks_them(chrome, tmp_path, monkeypatch):
-	"""Retest round 2: after `browser-use` (CLI) or an older wheel started the shared daemon with browser-harness's
+	"""Retest round 2: after `browse-dev` (CLI) or an older wheel started the shared daemon with browser-harness's
 	default BH_TAB_MARKER, Browser('chrome') reused it (it cannot change a running daemon's env) and answered 'What is
 	the title of https://example.com?' with '🐴 Example Domain'. The daemon re-marks the attached tab after every load."""
 	from browser_harness import admin
@@ -194,7 +195,7 @@ async def test_your_chrome_reads_titles_unmarked_on_a_daemon_that_marks_them(chr
 	monkeypatch.setenv('BU_NAME', name)
 	monkeypatch.setattr(admin, 'NAME', name)
 	monkeypatch.setenv('BU_CDP_WS', chrome['ws'])
-	from browser_use.browser.browser import _daemon_cdp, _daemon_request, _shutdown_daemon
+	from browse_dev.browser.browser import _daemon_cdp, _daemon_request, _shutdown_daemon
 
 	admin.ensure_daemon(name=name, env={'BH_TAB_MARKER': '1'})  # what the CLI / MCP / browser-harness itself start
 	# The tab that daemon already drives and marked (a CLI call left it there): the agent starts on it.
@@ -245,7 +246,7 @@ async def test_your_chrome_end_to_end(chrome, tmp_path, monkeypatch):
 		result = await Agent('Read the title', model, browser=Browser('chrome'), workspace=tmp_path).run()
 		assert (result.status, result.final_result()) == ('completed', 'Local')
 	finally:
-		from browser_use.browser.browser import _shutdown_daemon
+		from browse_dev.browser.browser import _shutdown_daemon
 
 		_shutdown_daemon(name)  # Browser('chrome') never stops the shared local daemon itself
 
@@ -275,7 +276,7 @@ async def test_your_chrome_reads_page_titles_unmarked(chrome, tmp_path, monkeypa
 		result = await Agent('Read the title', model, browser=Browser('chrome'), workspace=tmp_path).run()
 		assert (result.status, result.final_result()) == ('completed', '["Local", "Local"]')
 	finally:
-		from browser_use.browser.browser import _shutdown_daemon
+		from browse_dev.browser.browser import _shutdown_daemon
 
 		_shutdown_daemon(name)
 
@@ -319,11 +320,11 @@ def test_openai_settings_unchanged():
 
 
 def test_an_agent_that_never_runs_leaves_no_temp_workspace(monkeypatch, tmp_path):
-	"""C59: every Agent() made a browser-use-* dir in $TMPDIR at construction, so scripts that only build agents (or
+	"""C59: every Agent() made a browse-dev-* dir in $TMPDIR at construction, so scripts that only build agents (or
 	reject a schema) left thousands of empty dirs. The default workspace is now made on first use, once."""
 	import tempfile
 
-	from browser_use import ChatOpenAI
+	from browse_dev import ChatOpenAI
 
 	monkeypatch.setattr(tempfile, 'tempdir', str(tmp_path))
 	llm = ChatOpenAI('gpt-6-luna', api_key='x')
@@ -337,12 +338,13 @@ def test_an_agent_that_never_runs_leaves_no_temp_workspace(monkeypatch, tmp_path
 	assert Agent('t', llm, workspace=custom).workspace == custom and not custom.exists()  # made by run()
 
 
+@pytest.mark.skipif(__import__('sys').platform == 'win32', reason='creating a symlink needs elevated privileges on Windows')
 def test_the_workspace_keeps_the_path_as_given(tmp_path, monkeypatch):
 	"""Examples run: on macOS tempfile.mkdtemp() returns /var/... (a symlink to /private/var), Agent resolved it, and
 	result.downloads[0].relative_to(workspace) raised ValueError. The workspace is the path as given, made absolute."""
 	import tempfile
 
-	from browser_use import ChatOpenAI
+	from browse_dev import ChatOpenAI
 
 	(tmp_path / 'real').mkdir()
 	(tmp_path / 'link').symlink_to(tmp_path / 'real', target_is_directory=True)
@@ -356,10 +358,10 @@ def test_reasoning_on_a_chat_backend_warns_instead_of_silently_doing_nothing(mon
 	"""Fable r2-5: Agent(reasoning='high') with bu-auto or a base_url model changed nothing, without a word."""
 	import logging
 
-	from browser_use import ChatOpenAI
+	from browse_dev import ChatOpenAI
 
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'fake-test-key')
-	monkeypatch.setattr(logging.getLogger('browser_use'), 'propagate', True)  # caplog listens on the root logger
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'fake-test-key')
+	monkeypatch.setattr(logging.getLogger('browse_dev'), 'propagate', True)  # caplog listens on the root logger
 	llm = ChatOpenAI('m', api_key='x', base_url='http://localhost:11434/v1')
 	Agent('t', llm, reasoning='high')._build()
 	assert "reasoning='high' is ignored" in caplog.text
@@ -390,7 +392,7 @@ async def test_remote_upload_sends_bytes(chrome, tmp_path):
 
 @pytest.fixture
 def remote_host(chrome):
-	"""A CDP endpoint that rejects local file paths as Browser Use cloud does: the browser runs on another host."""
+	"""A CDP endpoint that rejects local file paths as Browse Dev cloud does: the browser runs on another host."""
 	import contextlib
 	import threading
 
@@ -466,7 +468,7 @@ async def test_local_upload_takes_relative_paths_and_refuses_what_is_not_a_file(
 			60,
 		)
 		assert r['error'] is None and 'cv.txt:11' in r['output'], r
-		for bad in ('missing.txt', '~/browser-use-no-such-file.txt', '.'):
+		for bad in ('missing.txt', '~/browse-dev-no-such-file.txt', '.'):
 			r = await repl.call('exec', f'upload_file("#f", {bad!r})', 60)
 			assert r['error'] and 'FileNotFoundError: upload_file:' in r['error'] and 'is not a file' in r['error'], r
 	finally:
@@ -546,6 +548,7 @@ async def test_a_request_too_large_for_the_daemon_raises_one_clear_error(chrome,
 		await browser.stop()
 
 
+@pytest.mark.skipif(__import__('sys').platform == 'win32', reason='needs POSIX signals to SIGKILL the Chrome daemon')
 async def test_a_dead_daemon_is_started_again_on_the_same_browser(chrome, tmp_path):
 	"""Lifecycle F2: once the daemon died every cell failed with a raw ipc.connect traceback, start() handed back the
 	dead daemon's env, and a keep_alive cloud browser kept billing. Now the cell says so in one line, the daemon is
@@ -686,10 +689,10 @@ async def test_a_stuck_cloud_daemon_is_replaced_without_stopping_its_cloud_brows
 	from browser_harness import _ipc as ipc
 	from browser_harness import admin
 
-	from browser_use.browser import browser as browser_mod
-	from browser_use.harness_cloud import daemon_healthy
+	from browse_dev.browser import browser as browser_mod
+	from browse_dev.harness_cloud import daemon_healthy
 
-	monkeypatch.delenv('BROWSER_USE_API_KEY', raising=False)  # a cloud stop then fails on "no key", before any request
+	monkeypatch.delenv('BROWSE_DEV_API_KEY', raising=False)  # a cloud stop then fails on "no key", before any request
 	port = chrome['http'].rsplit(':', 1)[1]
 	proxy = _StallingProxy(int(port))
 	browser = Browser(cdp_url=chrome['http'])
@@ -723,8 +726,8 @@ from pathlib import Path
 os.environ['BH_RUNTIME_DIR'] = sys.argv[2]
 os.environ.pop('BH_RUNTIME_DIR_SHARED', None)
 from browser_harness import _ipc as ipc
-from browser_use import Browser
-from browser_use.repl import Repl
+from browse_dev import Browser
+from browse_dev.repl import Repl
 
 async def main():
 	a, b = Browser(cdp_url=sys.argv[1]), Browser(cdp_url=sys.argv[1])
@@ -1076,7 +1079,7 @@ async def test_bu_2fa_code_secret_types_the_current_totp_code_not_the_seed(daemo
 
 
 def test_totp_matches_rfc6238():
-	from browser_use.repl.worker import totp
+	from browse_dev.repl.worker import totp
 
 	seed = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'  # RFC 6238 SHA-1 key '12345678901234567890'
 	assert [totp(seed, now=t) for t in (59, 1111111109, 1234567890)] == ['287082', '081804', '005924']
@@ -1086,10 +1089,10 @@ def test_localhost_task_with_a_cloud_browser_warns_instead_of_refusing(monkeypat
 	"""A cloud browser cannot reach localhost, but the task may only mention it (docs, a version number): a hint only."""
 	import logging
 
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'fake-test-key')
-	monkeypatch.setattr(logging.getLogger('browser_use'), 'propagate', True)  # caplog listens on the root logger
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'fake-test-key')
+	monkeypatch.setattr(logging.getLogger('browse_dev'), 'propagate', True)  # caplog listens on the root logger
 	agent = Agent('Test the signup form on http://localhost:3000', 'test', browser=Browser())
-	with caplog.at_level('WARNING', logger='browser_use.agent.service'):
+	with caplog.at_level('WARNING', logger='browse_dev.agent.service'):
 		agent._check_task()
 	assert "'localhost'" in caplog.text and "Browser('chromium')" in caplog.text
 
@@ -1145,7 +1148,7 @@ async def test_an_unwritable_workspace_fails_before_a_browser_starts(tmp_path, m
 FD_LIMIT_CHILD = """
 import asyncio, os, resource, sys
 from conftest import script
-from browser_use import Agent, Browser
+from browse_dev import Agent, Browser
 
 soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (256, hard))  # macOS's default (launchctl limit maxfiles)
@@ -1193,7 +1196,7 @@ async def test_a_connection_error_names_its_cause(tmp_path):
 	from pydantic_ai.exceptions import ModelConnectionError
 	from pydantic_ai.models.function import FunctionModel
 
-	from browser_use.agent.loop import Session, run
+	from browse_dev.agent.loop import Session, run
 
 	def provider(messages, info):
 		try:

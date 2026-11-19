@@ -32,7 +32,7 @@ def _self_signed(directory: Path) -> tuple[Path, Path]:
 	from cryptography.x509.oid import NameOID
 
 	key = ec.generate_private_key(ec.SECP256R1())
-	name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, 'browser-use tls test')])
+	name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, 'browse-dev tls test')])
 	now = datetime.datetime.now(datetime.UTC)
 	cert = (
 		x509.CertificateBuilder()
@@ -59,7 +59,7 @@ def _self_signed(directory: Path) -> tuple[Path, Path]:
 def server(tmp_path, monkeypatch):
 	"""(https base URL, its certificate) of a server that answers every request 200 with JSON; no TLS settings from the
 	environment and a fresh tls_context()."""
-	from browser_use import utils
+	from browse_dev import utils
 
 	for var in ('SSL_CERT_FILE', 'SSL_CERT_DIR'):
 		monkeypatch.delenv(var, raising=False)
@@ -100,22 +100,22 @@ def test_requests_trust_a_root_only_the_os_verifier_trusts(server, monkeypatch):
 
 	from browser_harness import admin
 
-	from browser_use import ChatBrowserUse
-	from browser_use.browser import browser as browser_mod
-	from browser_use.utils import install_tls_opener
+	from browse_dev import ChatBrowseDev
+	from browse_dev.browser import browser as browser_mod
+	from browse_dev.utils import install_tls_opener
 
 	url, _ = server
 	verified: list[str | None] = []
 	os_verifier = importlib.import_module('truststore._api')  # the package deletes the name _api
 	monkeypatch.setattr(os_verifier, '_verify_peercerts', lambda sock, server_hostname: verified.append(server_hostname))
 
-	assert ChatBrowserUse('bu-fast', api_key=KEY, base_url=f'{url}/api/v4/llm/v1').preflight() is None
+	assert ChatBrowseDev('bu-fast', api_key=KEY, base_url=f'{url}/api/v4/llm/v1').preflight() is None
 	assert browser_mod._ws_url(url) == 'ws://127.0.0.1:1/x'
 
 	monkeypatch.setattr(urllib.request, '_opener', None)  # restored after the test
-	install_tls_opener()  # what `browser-use` and the MCP server do first
+	install_tls_opener()  # what `browse-dev` and the MCP server do first
 	monkeypatch.setattr(admin, 'BU_API', f'{url}/api/v4')
-	monkeypatch.setenv('BROWSER_USE_API_KEY', KEY)
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', KEY)
 	assert admin._browser_use('/browsers', 'POST', {})['id'] == 'b1'  # start_remote_daemon's create call
 	assert set(verified) == {'127.0.0.1'}  # the OS verifier, not OpenSSL's store, accepted each one
 
@@ -123,7 +123,7 @@ def test_requests_trust_a_root_only_the_os_verifier_trusts(server, monkeypatch):
 def test_without_truststore_the_certifi_roots_are_trusted(server, monkeypatch):
 	import certifi
 
-	from browser_use.utils import urlopen_keyed
+	from browse_dev.utils import urlopen_keyed
 
 	url, cert = server
 	monkeypatch.setitem(sys.modules, 'truststore', None)  # import truststore raises ImportError
@@ -135,7 +135,7 @@ def test_without_truststore_the_certifi_roots_are_trusted(server, monkeypatch):
 def test_a_stalled_handshake_in_one_thread_does_not_hold_up_another(server, monkeypatch):
 	"""truststore holds a context's lock through each handshake: the telemetry thread's handshake to a PostHog that a
 	firewall stalls must not hold the gateway check in another thread until it times out. SSL_CERT_FILE is trusted too."""
-	from browser_use.utils import tls_context, urlopen_keyed
+	from browse_dev.utils import tls_context, urlopen_keyed
 
 	url, cert = server
 	monkeypatch.setenv('SSL_CERT_FILE', str(cert))
@@ -159,7 +159,7 @@ def test_a_stalled_handshake_in_one_thread_does_not_hold_up_another(server, monk
 
 def test_the_installed_opener_uses_a_proxy_set_after_it_was_installed(monkeypatch):
 	"""cli.main installs the opener before browser-harness reads its .env: HTTPS_PROXY from there still applies."""
-	from browser_use.utils import install_tls_opener
+	from browse_dev.utils import install_tls_opener
 
 	proxy = socket.socket()
 	proxy.bind(('127.0.0.1', 0))
@@ -188,21 +188,21 @@ def test_the_installed_opener_uses_a_proxy_set_after_it_was_installed(monkeypatc
 
 
 def test_version_does_not_pay_for_the_tls_setup():
-	"""`browser-use --version` imported browser_use.utils to install the opener: its proxy lookup made the call ~14 ms
+	"""`browse-dev --version` imported browse_dev.utils to install the opener: its proxy lookup made the call ~14 ms
 	slower on macOS (39 -> 55 ms)."""
-	code = "import sys; sys.argv = ['browser-use', '--version']; from browser_use.cli import main; main()\n"
-	code += "print('browser_use.utils' in sys.modules)"
+	code = "import sys; sys.argv = ['browse-dev', '--version']; from browse_dev.cli import main; main()\n"
+	code += "print('browse_dev.utils' in sys.modules)"
 	env = {**os.environ, 'ANONYMIZED_TELEMETRY': 'false'}
 	result = subprocess.run([sys.executable, '-c', code], cwd=ROOT, env=env, capture_output=True, text=True, timeout=60)
 	assert result.stdout.strip().splitlines()[-1] == 'False', result.stdout + result.stderr
 
 
 def _login(base_url: str, store: Path) -> subprocess.CompletedProcess[str]:
-	env = {k: v for k, v in os.environ.items() if k not in ('BROWSER_USE_API_KEY', 'SSL_CERT_FILE', 'SSL_CERT_DIR')}
-	env |= {'BROWSER_USE_CLOUD_API_URL': base_url, 'BH_AUTH_PATH': str(store)}
+	env = {k: v for k, v in os.environ.items() if k not in ('BROWSE_DEV_API_KEY', 'SSL_CERT_FILE', 'SSL_CERT_DIR')}
+	env |= {'BROWSE_DEV_CLOUD_API_URL': base_url, 'BROWSER_USE_CLOUD_API_URL': base_url, 'BH_AUTH_PATH': str(store)}
 	env['PYTHONPATH'] = os.pathsep.join(part for part in (str(ROOT), env.get('PYTHONPATH', '')) if part)
 	return subprocess.run(
-		[sys.executable, '-m', 'browser_use', 'login', '--api-key-stdin'],
+		[sys.executable, '-m', 'browse_dev', 'login', '--api-key-stdin'],
 		cwd=ROOT,
 		env=env,
 		input=KEY,

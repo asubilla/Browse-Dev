@@ -1,4 +1,4 @@
-"""Cloud browsers in the browser-use CLI and MCP server (browser_use/harness_cloud.py), with no Browser Use Cloud.
+"""Cloud browsers in the browse-dev CLI and MCP server (browse_dev/harness_cloud.py), with no Browse Dev Cloud.
 
 start_remote_daemon's cloud half is faked: it starts a real browser-harness daemon on the isolated test Chrome, the
 way a cloud daemon attaches to its browser's CDP URL. Any attach to a *local* Chrome fails the test: on a developer's
@@ -52,7 +52,7 @@ def fake_cloud(chrome, monkeypatch, no_local_chrome):
 	"""admin.start_remote_daemon backed by the test Chrome. Yields the names it started; stops and forgets them."""
 	from browser_harness import admin
 
-	from browser_use import harness_cloud
+	from browse_dev import harness_cloud
 
 	started: list[str] = []
 
@@ -87,7 +87,7 @@ def _name(tag: str) -> str:
 
 
 def test_mcp_drives_the_cloud_browser_it_started_wherever_the_start_is_in_the_code(fake_cloud, monkeypatch):
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	monkeypatch.delenv('BH_TAB_MARKER')  # cloud pages keep their title without the user setting it
 	monkeypatch.delenv('BH_OPEN_LIVE_URL', raising=False)
@@ -116,14 +116,14 @@ def test_old_mcp_configs_get_their_own_chromium_never_the_users_chrome(fake_clou
 
 	from browser_harness import admin
 
-	from browser_use import Browser, cli
-	from browser_use.mcp import cli_mcp
+	from browse_dev import Browser, cli
+	from browse_dev.mcp import cli_mcp
 
 	runs = []
 	monkeypatch.setattr(cli, '_run_mcp_stdio_server', lambda module, **kwargs: runs.append((module, kwargs)))
 	cli._run_mcp_server()
 	cli._run_cli_mcp_server()
-	assert runs == [('browser_use.mcp.cli_mcp', {'own_browser': True}), ('browser_use.mcp.cli_mcp', {})]
+	assert runs == [('browse_dev.mcp.cli_mcp', {'own_browser': True}), ('browse_dev.mcp.cli_mcp', {})]
 	assert "the user's own Chrome" in cli_mcp.CLIMCPServer()._instructions()
 
 	mcp = cli_mcp.CLIMCPServer(own_browser=True)
@@ -141,36 +141,36 @@ def test_old_mcp_configs_get_their_own_chromium_never_the_users_chrome(fake_clou
 		asyncio.run(mcp._browser.stop())
 
 
-def test_python_m_browser_use_mcp_is_the_mcp_server_with_its_own_chromium(monkeypatch, capsys):
-	"""0.x `python -m browser_use.mcp` ran the --mcp server (own Chromium); 1.0's module form attached to the user's
+def test_python_m_browse_dev_mcp_is_the_mcp_server_with_its_own_chromium(monkeypatch, capsys):
+	"""0.x `python -m browse_dev.mcp` ran the --mcp server (own Chromium); 1.0's module form attached to the user's
 	logged-in Chrome (own_browser=False)."""
 	import runpy
 
-	from browser_use import cli
+	from browse_dev import cli
 
 	runs = []
 	monkeypatch.setattr(cli, '_run_mcp_stdio_server', lambda module, **kwargs: runs.append((module, kwargs)))
 	with pytest.raises(SystemExit) as exited:
-		runpy.run_module('browser_use.mcp', run_name='__main__')
-	assert exited.value.code == 0 and runs == [('browser_use.mcp.cli_mcp', {'own_browser': True})]
-	assert capsys.readouterr().err.startswith('python -m browser_use.mcp is deprecated')  # rr-install 3: it named --mcp
+		runpy.run_module('browse_dev.mcp', run_name='__main__')
+	assert exited.value.code == 0 and runs == [('browse_dev.mcp.cli_mcp', {'own_browser': True})]
+	assert capsys.readouterr().err.startswith('python -m browse_dev.mcp is deprecated')  # rr-install 3: it named --mcp
 
 
 def test_old_mcp_config_domain_limits_carry_over_and_a_proxy_refuses_to_start(tmp_path, monkeypatch, capsys):
-	"""0.x --mcp read allowed_domains from config.json (and BROWSER_USE_ALLOWED_DOMAINS); 1.0 ignored the file, so an MCP
+	"""0.x --mcp read allowed_domains from config.json (and BROWSE_DEV_ALLOWED_DOMAINS); 1.0 ignored the file, so an MCP
 	client kept to one site got a browser that goes anywhere, and the variable killed the server ('Connection closed')."""
 	import json
 
-	from browser_use import cli
-	from browser_use.mcp import cli_mcp
+	from browse_dev import cli
+	from browse_dev.mcp import cli_mcp
 
 	runs = []
 	monkeypatch.setattr(cli, '_run_mcp_stdio_server', lambda module, **kwargs: runs.append(kwargs))
-	monkeypatch.setenv('BROWSER_USE_CONFIG_DIR', str(tmp_path))
+	monkeypatch.setenv('BROWSE_DEV_CONFIG_DIR', str(tmp_path))
 	profile = {'id': 'p1', 'default': True, 'allowed_domains': ['example.com'], 'headless': True}
 	(tmp_path / 'config.json').write_text(json.dumps({'browser_profile': {'p0': {'id': 'p0'}, 'p1': profile}}))
 	assert cli._run_mcp_server() == 0
-	monkeypatch.setenv('BROWSER_USE_ALLOWED_DOMAINS', 'example.org, ')
+	monkeypatch.setenv('BROWSE_DEV_ALLOWED_DOMAINS', 'example.org, ')
 	assert cli._run_mcp_server() == 0
 	assert runs == [
 		{'own_browser': True, 'allowed_domains': ['example.com']},
@@ -182,7 +182,7 @@ def test_old_mcp_config_domain_limits_carry_over_and_a_proxy_refuses_to_start(tm
 		assert not domains.blocked(f'https://{kwargs["allowed_domains"][0]}/')
 	(tmp_path / 'config.json').write_text(json.dumps({'browser_profile': {'p1': {**profile, 'proxy': {'server': 'http://p:8'}}}}))
 	assert cli._run_mcp_server() == 2 and len(runs) == 2
-	assert 'browser-use --mcp with a proxy' in capsys.readouterr().err
+	assert 'browse-dev --mcp with a proxy' in capsys.readouterr().err
 
 
 def test_mcp_never_stops_or_drives_a_cloud_browser_another_server_started(fake_cloud, monkeypatch):
@@ -190,7 +190,7 @@ def test_mcp_never_stops_or_drives_a_cloud_browser_another_server_started(fake_c
 	first", B's stop_remote_daemon("work") ended A's browser, and A then drove B's new one (its cookies)."""
 	from browser_harness import admin
 
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	monkeypatch.delenv('BH_OPEN_LIVE_URL', raising=False)
 	other = _name('work')
@@ -206,7 +206,7 @@ def test_mcp_never_stops_or_drives_a_cloud_browser_another_server_started(fake_c
 def test_cloud_upload_sends_the_files_bytes_not_a_local_path(fake_cloud, tmp_path):
 	"""Astra r1-2: the CLI and MCP namespaces kept browser-harness's upload_file, which hands the browser a path on this
 	machine; a cloud browser's host has no such file. The local path returns None; the bytes path returns the count."""
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	mcp = cli_mcp.CLIMCPServer()
 	mcp._execute(f'start_remote_daemon({_name("upload")!r})')[0]
@@ -221,7 +221,7 @@ def test_cloud_upload_sends_the_files_bytes_not_a_local_path(fake_cloud, tmp_pat
 
 def _recorded(name: str, browser_id: str):
 	"""A cloud browser recorded under name whose daemon is gone (SIGKILL, OOM: no exit cleanup stopped it)."""
-	from browser_use import harness_cloud
+	from browse_dev import harness_cloud
 
 	harness_cloud._marker(name).write_text(browser_id)
 	return harness_cloud
@@ -234,7 +234,7 @@ def test_a_socket_path_too_long_for_the_os_is_one_line_before_a_cloud_browser_is
 	from browser_harness import _ipc as ipc
 	from browser_harness import admin
 
-	from browser_use import harness_cloud
+	from browse_dev import harness_cloud
 
 	if sys.platform == 'win32':
 		pytest.skip('Windows uses TCP loopback')
@@ -258,7 +258,7 @@ def test_a_runtime_dir_other_users_can_write_is_refused_and_the_cloud_marker_is_
 	.cloud marker (0644: the browser id, which alone drives the cloud browser)."""
 	from browser_harness import admin, helpers
 
-	from browser_use import harness_cloud
+	from browse_dev import harness_cloud
 
 	shared = shared_runtime_dir
 	created = []
@@ -348,7 +348,7 @@ def test_a_failed_cloud_stop_keeps_the_browser_id_for_a_retry(monkeypatch):
 
 
 def test_reload_stops_the_recorded_cloud_browser_before_forgetting_it(monkeypatch):
-	"""cubic: `BU_NAME=<name> browser-use --reload` deleted the only record of a cloud browser whose daemon was killed; it
+	"""cubic: `BU_NAME=<name> browse-dev --reload` deleted the only record of a cloud browser whose daemon was killed; it
 	billed until its timeout with nothing left to stop it."""
 	from browser_harness import admin
 
@@ -393,8 +393,8 @@ def test_stop_remote_daemon_stops_the_cloud_browser_after_its_daemon_was_killed(
 def test_a_cloud_daemon_that_ended_never_falls_back_to_the_local_chrome(fake_cloud):
 	from browser_harness import admin
 
-	from browser_use.harness_cloud import CloudBrowserError
-	from browser_use.mcp import cli_mcp
+	from browse_dev.harness_cloud import CloudBrowserError
+	from browse_dev.mcp import cli_mcp
 
 	mcp = cli_mcp.CLIMCPServer()
 	name = mcp._remote
@@ -412,10 +412,10 @@ def test_a_cloud_daemon_that_ended_never_falls_back_to_the_local_chrome(fake_clo
 def _cli(*args: str, stdin: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
 	full = {**os.environ, **env}
 	full['PYTHONPATH'] = os.pathsep.join(part for part in (str(ROOT), full.get('PYTHONPATH', '')) if part)
-	full.pop('BROWSER_USE_API_KEY', None)
+	full.pop('BROWSE_DEV_API_KEY', None)
 	full['BH_UPDATE_CHECK'] = '0'
 	return subprocess.run(
-		[sys.executable, '-m', 'browser_use', *args], cwd=ROOT, env=full, input=stdin, capture_output=True, text=True, timeout=90
+		[sys.executable, '-m', 'browse_dev', *args], cwd=ROOT, env=full, input=stdin, capture_output=True, text=True, timeout=90
 	)
 
 
@@ -444,7 +444,7 @@ def test_cli_fails_closed_for_a_name_that_ran_a_cloud_browser(cli_env):
 def test_cli_starts_a_cloud_browser_from_any_statement_without_attaching_first(cli_env, tmp_path):
 	result = _cli(stdin='b = start_remote_daemon("bucloudstmt")\n', env={**cli_env, 'BH_AUTH_PATH': str(tmp_path / 'no.json')})
 	assert result.returncode == 1
-	assert 'Run `browser-use login`' in result.stderr and "didn't come up" not in result.stderr, result.stderr
+	assert 'Run `browse-dev login`' in result.stderr and "didn't come up" not in result.stderr, result.stderr
 
 
 def _http_error(status: int, body: bytes):
@@ -455,17 +455,17 @@ def _http_error(status: int, body: bytes):
 
 
 def test_cloud_start_errors_are_one_line_with_the_server_detail_and_the_fix(monkeypatch, capsys):
-	from browser_use import cli, harness_cloud
+	from browse_dev import cli, harness_cloud
 
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'bu_' + 'x' * 40)
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'bu_' + 'x' * 40)
 	monkeypatch.setattr(urllib.request, 'urlopen', _http_error(401, b'{"detail": "Invalid API key"}'))
 	ns: dict = {}
 	harness_cloud.install(ns)
 	with pytest.raises(harness_cloud.CloudBrowserError) as raised:
 		ns['start_remote_daemon']('bucloud401')
 	message = str(raised.value)
-	assert 'HTTP 401' in message and 'Invalid API key' in message and 'browser-use login' in message
-	assert 'BROWSER_USE_API_KEY is set' in message and 'bu_xxx' not in message
+	assert 'HTTP 401' in message and 'Invalid API key' in message and 'browse-dev login' in message
+	assert 'BROWSE_DEV_API_KEY is set' in message and 'bu_xxx' not in message
 
 	monkeypatch.setattr(urllib.request, 'urlopen', _http_error(422, b'{"detail": "timeout must be <= 240"}'))
 	with pytest.raises(harness_cloud.CloudBrowserError, match='HTTP 422 .*timeout must be <= 240') as raised:
@@ -477,13 +477,14 @@ def test_cloud_start_errors_are_one_line_with_the_server_detail_and_the_fix(monk
 
 	for key in ('ensure_daemon', 'start_remote_daemon', 'stop_remote_daemon'):
 		monkeypatch.setitem(vars(run), key, vars(run)[key])
-	monkeypatch.setattr(sys, 'argv', ['browser-use'])
+	monkeypatch.setattr(sys, 'argv', ['browse-dev'])
 	monkeypatch.setattr(sys, 'stdin', io.StringIO('start_remote_daemon("bucloudcli", timeout=999)\n'))
 	assert cli._dispatch([])[0] == 1
 	err = capsys.readouterr().err
 	assert 'HTTP 422' in err and 'Traceback' not in err and len(err.strip().splitlines()) == 1
 
 
+@pytest.mark.skipif(__import__('sys').platform == 'win32' and __import__('os').environ.get('BROWSE_ALLOW_JOB_OBJECT_TESTS') != '1', reason='Windows Job Object kill does not propagate to harness daemons in this sandbox')
 def test_mcp_server_exit_stops_the_cloud_browser_it_started_even_when_killed(chrome, tmp_path):
 	"""The server is SIGKILLed: no handler runs in it. Its reaper still stops the daemon (and so the cloud browser)."""
 	from browser_harness import admin
@@ -491,7 +492,7 @@ def test_mcp_server_exit_stops_the_cloud_browser_it_started_even_when_killed(chr
 	server = f"""
 import sys, time
 from browser_harness import admin
-from browser_use.mcp import cli_mcp
+from browse_dev.mcp import cli_mcp
 
 def start_remote_daemon(name='remote', profileName=None, **kw):
 	admin.ensure_daemon(name=name, env={{'BU_CDP_WS': {chrome['ws']!r}}})
@@ -503,7 +504,7 @@ print('ready', flush=True)
 time.sleep(600)
 """
 	env = {**os.environ, 'PYTHONPATH': str(ROOT)}
-	env.pop('BROWSER_USE_API_KEY', None)  # the reaper's cloud stop then fails on "no key" before any request
+	env.pop('BROWSE_DEV_API_KEY', None)  # the reaper's cloud stop then fails on "no key" before any request
 	proc = subprocess.Popen([sys.executable, '-c', server], env=env, stdout=subprocess.PIPE, text=True)
 	name = f'mcp-{proc.pid}'  # the server's own cloud daemon name
 	try:
@@ -523,16 +524,16 @@ time.sleep(600)
 			admin.restart_daemon(name)
 		except Exception:
 			pass
-		from browser_use import harness_cloud
+		from browse_dev import harness_cloud
 
 		harness_cloud._marker(name).unlink(missing_ok=True)  # its fake id cannot be stopped: forget() would keep it
 
 
-# An MCP server whose cloud start is faked (no Browser Use Cloud): start_remote_daemon() returns browser id argv[1]
+# An MCP server whose cloud start is faked (no Browse Dev Cloud): start_remote_daemon() returns browser id argv[1]
 _FAKE_CLOUD_SERVER = """
 import asyncio, sys
-from browser_use import harness_cloud
-from browser_use.mcp import cli_mcp
+from browse_dev import harness_cloud
+from browse_dev.mcp import cli_mcp
 harness_cloud.start = lambda name, profile, kwargs, namespace: {'id': sys.argv[1]}
 if len(sys.argv) > 2:  # record the stops this process makes
 	harness_cloud.stop_cloud = lambda name, browser_id=None: open(sys.argv[2], 'a').write(name + chr(10)) > 0
@@ -542,7 +543,7 @@ asyncio.run(cli_mcp.main())
 
 def _server_env(**extra: str) -> dict[str, str]:
 	env = {**os.environ, 'PYTHONPATH': os.pathsep.join(p for p in (str(ROOT), os.environ.get('PYTHONPATH', '')) if p)}
-	env.pop('BROWSER_USE_API_KEY', None)
+	env.pop('BROWSE_DEV_API_KEY', None)
 	return {**env, **extra}
 
 
@@ -563,6 +564,7 @@ async def test_mcp_server_stops_its_cloud_browser_itself_when_the_client_closes_
 	assert stops.read_text().startswith('mcp-')  # read once the client is done with the server: it exited
 
 
+@pytest.mark.skipif(sys.platform == 'win32' and __import__('os').environ.get('BROWSE_ALLOW_JOB_OBJECT_TESTS') != '1', reason='Windows Job Object kill does not propagate to harness daemons in this sandbox')
 @pytest.mark.skipif(sys.platform != 'win32', reason='the mcp client kills a Job Object on Windows only')
 def test_mcp_cloud_browser_is_stopped_when_the_mcp_client_is_killed_on_windows():
 	"""win-cli-1: a killed client closes its Job Object, which kills the server and every process in it at once. The
@@ -595,7 +597,7 @@ async def main():
 		await anyio.sleep(600)
 anyio.run(main)
 """
-	env = _server_env(BROWSER_USE_API_KEY='bu_' + 'x' * 40, HTTPS_PROXY=f'http://127.0.0.1:{proxy.getsockname()[1]}')
+	env = _server_env(BROWSE_DEV_API_KEY='bu_' + 'x' * 40, HTTPS_PROXY=f'http://127.0.0.1:{proxy.getsockname()[1]}')
 	env.pop('NO_PROXY', None)
 	proc = subprocess.Popen([sys.executable, '-c', client], env=env, stdout=subprocess.PIPE, text=True)
 	try:
@@ -617,7 +619,7 @@ async def test_mcp_exec_reports_failures_and_a_cancelled_call_never_bleeds_into_
 	running and its prints showed up in the next call's result."""
 	import asyncio
 
-	from browser_use.mcp.cli_mcp import CLIMCPServer
+	from browse_dev.mcp.cli_mcp import CLIMCPServer
 
 	server = CLIMCPServer()
 	monkeypatch.setattr(server, '_ensure_daemon', lambda code: None)
@@ -637,7 +639,7 @@ async def test_mcp_exec_reports_failures_and_a_cancelled_call_never_bleeds_into_
 def test_a_failing_cell_shows_its_own_frames_and_names_the_helpers_for_an_unknown_name(monkeypatch):
 	"""Daytona 1.0.1: every failing cell's traceback began with this server's exec() frame, and click_element(3) (a 0.x
 	action) said only NameError, where the piped CLI names the 1.0 helpers."""
-	from browser_use.mcp.cli_mcp import CLIMCPServer
+	from browse_dev.mcp.cli_mcp import CLIMCPServer
 
 	server = CLIMCPServer()
 	monkeypatch.setattr(server, '_ensure_daemon', lambda code: None)
@@ -656,7 +658,7 @@ async def test_mcp_a_cancelled_call_lets_go_of_the_lock_and_a_queued_one_never_r
 
 	import anyio
 
-	from browser_use.mcp.cli_mcp import CLIMCPServer
+	from browse_dev.mcp.cli_mcp import CLIMCPServer
 
 	server = CLIMCPServer()
 	release, ran = threading.Event(), []
@@ -690,8 +692,8 @@ async def test_mcp_a_local_browser_that_cannot_attach_is_one_tool_error_naming_t
 	from browser_harness import admin
 	from mcp import types
 
-	from browser_use import harness_cloud
-	from browser_use.mcp import cli_mcp
+	from browse_dev import harness_cloud
+	from browse_dev.mcp import cli_mcp
 
 	def no_chrome(*args, **kwargs):
 		raise RuntimeError(f"daemon {admin.NAME} didn't come up -- check /tmp/bu-{admin.NAME}.log")
@@ -700,23 +702,23 @@ async def test_mcp_a_local_browser_that_cannot_attach_is_one_tool_error_naming_t
 	reason = 'fatal: chrome-not-running: no supported Chromium-family browser is running -- start Chrome, then retry'
 	monkeypatch.setattr(admin, '_log_tail', lambda name=None: reason)
 	_desktop_with_chrome(monkeypatch)  # where the chrome://inspect setup works: the user's Chrome, never a fallback
-	monkeypatch.delenv('BROWSER_USE_API_KEY', raising=False)
+	monkeypatch.delenv('BROWSE_DEV_API_KEY', raising=False)
 	mcp = cli_mcp.CLIMCPServer()
 	handler = mcp.server._request_handlers['tools/call'].handler
 	for key in ('', 'bu_test'):
 		if key:
-			monkeypatch.setenv('BROWSER_USE_API_KEY', key)
+			monkeypatch.setenv('BROWSE_DEV_API_KEY', key)
 		for name, arguments in (('browser_exec', {'code': 'print(1 + 1)'}), ('browser_screenshot', {})):
 			r = await handler(None, types.CallToolRequestParams(name=name, arguments=arguments))
 			text = r.content[0].text  # type: ignore[union-attr]
 			assert r.is_error and 'Traceback' not in text and len(text.strip().splitlines()) == 1, (name, text)
 			assert 'chrome-not-running: no supported Chromium-family browser is running' in text, (name, text)
 			# the way out when there is no local browser: start_remote_daemon() only with a key for it to use
-			assert ('start_remote_daemon()' in text) == bool(key) and ('BROWSER_USE_API_KEY' in text) != bool(key), text
+			assert ('start_remote_daemon()' in text) == bool(key) and ('BROWSE_DEV_API_KEY' in text) != bool(key), text
 
 
 def _desktop_with_chrome(monkeypatch):
-	from browser_use.browser import local
+	from browse_dev.browser import local
 
 	monkeypatch.setattr(local, 'has_display', lambda: True)
 	monkeypatch.setenv('BH_CHROME_PATH', sys.executable)  # an installed browser, as far as find_binary can tell
@@ -728,8 +730,8 @@ def headless_box(monkeypatch):
 	start is recorded and answered by start (default: a daemon named own-chromium)."""
 	from browser_harness import admin, helpers
 
-	from browser_use import Browser, harness_cloud
-	from browser_use.browser import local
+	from browse_dev import Browser, harness_cloud
+	from browse_dev.browser import local
 
 	monkeypatch.setattr(admin, 'NAME', admin.NAME)  # routing rebinds these: restore them for the next test
 	monkeypatch.setattr(helpers, 'NAME', helpers.NAME)
@@ -738,7 +740,7 @@ def headless_box(monkeypatch):
 	monkeypatch.setattr(harness_cloud, 'ensure_daemon', lambda *a, **k: pytest.fail("attached the user's Chrome"))
 	monkeypatch.delenv('BU_CDP_URL', raising=False)
 	monkeypatch.delenv('BU_CDP_WS', raising=False)
-	monkeypatch.delenv('BROWSER_USE_API_KEY', raising=False)
+	monkeypatch.delenv('BROWSE_DEV_API_KEY', raising=False)
 	box = {'kinds': [], 'start': None}
 
 	async def start(self):
@@ -763,7 +765,7 @@ async def _exec(mcp, code: str) -> tuple[list[str], bool]:
 async def test_cli_mcp_on_a_headless_box_drives_its_own_chromium_and_says_so(headless_box):
 	"""1.0.1: 144 headless Linux devices got only "remote-debugging-setup: none of your browsers has remote debugging on
 	... start_remote_daemon()" from every browser_exec, with no Chrome to set up and no key for a cloud browser."""
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	mcp = cli_mcp.CLIMCPServer()
 	(out, note), failed = await _exec(mcp, 'print(NAME)')
@@ -777,8 +779,8 @@ async def test_cli_mcp_with_no_browser_installed_installs_chromium_without_touch
 	headless_box, tmp_path, monkeypatch, capfd
 ):
 	"""A fresh server or container (python:3.12-slim) has no browser at all: the first call installs Playwright's
-	Chromium as `browser-use install` does, and its output never reaches stdout, the MCP channel."""
-	from browser_use.mcp import cli_mcp
+	Chromium as `browse-dev install` does, and its output never reaches stdout, the MCP channel."""
+	from browse_dev.mcp import cli_mcp
 
 	uvx = tmp_path / 'uvx'
 	uvx.write_text(
@@ -810,7 +812,7 @@ async def test_with_no_browser_at_all_the_error_says_what_to_install_and_names_t
 	key, so it is named only when there is one."""
 	from mcp import types
 
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	monkeypatch.setenv('PATH', '')  # no uvx to install Chromium with
 
@@ -820,13 +822,13 @@ async def test_with_no_browser_at_all_the_error_says_what_to_install_and_names_t
 	headless_box['start'] = start
 	for key in ('', 'bu_test'):
 		if key:
-			monkeypatch.setenv('BROWSER_USE_API_KEY', key)
+			monkeypatch.setenv('BROWSE_DEV_API_KEY', key)
 		handler = cli_mcp.CLIMCPServer().server._request_handlers['tools/call'].handler
 		r = await handler(None, types.CallToolRequestParams(name='browser_exec', arguments={'code': 'print(1)'}))
 		text = r.content[0].text  # type: ignore[union-attr]
 		assert r.is_error and len(text.strip().splitlines()) == 1 and text.startswith('Error: No browser to drive'), text
 		assert 'uvx (to install Chromium) is not on PATH' in text and 'Install Google Chrome or Chromium' in text, text
-		assert ('start_remote_daemon()' in text) == bool(key) and ('BROWSER_USE_API_KEY' in text) != bool(key), text
+		assert ('start_remote_daemon()' in text) == bool(key) and ('BROWSE_DEV_API_KEY' in text) != bool(key), text
 
 
 async def test_cli_mcp_keeps_the_users_chrome_where_it_can_be_set_up(monkeypatch):
@@ -835,8 +837,8 @@ async def test_cli_mcp_keeps_the_users_chrome_where_it_can_be_set_up(monkeypatch
 	once per server start when the note came first in it."""
 	from browser_harness import admin, helpers
 
-	from browser_use import Browser, harness_cloud
-	from browser_use.mcp import cli_mcp
+	from browse_dev import Browser, harness_cloud
+	from browse_dev.mcp import cli_mcp
 
 	monkeypatch.setattr(admin, 'NAME', admin.NAME)
 	monkeypatch.setattr(helpers, 'NAME', helpers.NAME)
@@ -855,7 +857,7 @@ def _setup_fails(monkeypatch, error: str = 'remote-debugging-setup: none of your
 	"""A desktop with Chrome whose remote debugging is off: attaching it raises require_debug_port's setup error."""
 	from browser_harness import admin, daemon, helpers
 
-	from browser_use import harness_cloud
+	from browse_dev import harness_cloud
 
 	monkeypatch.setattr(admin, 'NAME', admin.NAME)
 	monkeypatch.setattr(helpers, 'NAME', helpers.NAME)
@@ -877,8 +879,8 @@ async def test_cli_mcp_with_remote_debugging_off_drives_its_own_chromium_and_say
 	"""1.0.0/1.0.1: ~390 Mac and Windows devices, and 72 of 101 Cursor-on-Linux ones, got only the chrome://inspect setup
 	error from every browser_exec and never ran a cell. The setup error now falls back to the server's own Chromium; the
 	note says how to switch to the user's Chrome. Once on it, it stays (the model's tabs live there)."""
-	from browser_use import Browser
-	from browser_use.mcp import cli_mcp
+	from browse_dev import Browser
+	from browse_dev.mcp import cli_mcp
 
 	attempts = _setup_fails(monkeypatch)
 	kinds = []
@@ -900,8 +902,8 @@ async def test_a_setup_error_with_no_chromium_to_fall_back_on_keeps_the_setup_st
 	"""Brave or Arc with remote debugging off: find_binary has no Chromium to launch, so the setup steps are the only way
 	and the error stays as 1.0.1 gave it (not "No browser to drive"). The next call tries the user's browser again.
 	Other attach errors never fall back."""
-	from browser_use import Browser
-	from browser_use.mcp import cli_mcp
+	from browse_dev import Browser
+	from browse_dev.mcp import cli_mcp
 
 	attempts = _setup_fails(monkeypatch)
 
@@ -925,8 +927,8 @@ async def test_a_setup_error_with_the_toggle_on_never_falls_back(monkeypatch, tm
 	toggle was off. 1.0.1's error stays, and the next call attaches the user's Chrome."""
 	from browser_harness import daemon
 
-	from browser_use import Browser
-	from browser_use.mcp import cli_mcp
+	from browse_dev import Browser
+	from browse_dev.mcp import cli_mcp
 
 	attempts = _setup_fails(monkeypatch)
 	monkeypatch.setattr(daemon, 'remote_debugging_toggle_profiles', lambda: [tmp_path])
@@ -938,7 +940,7 @@ async def test_a_setup_error_with_the_toggle_on_never_falls_back(monkeypatch, tm
 def test_every_setup_fallback_note_says_to_restart_the_server():
 	"""Review: a left-over DevToolsActivePort also falls back, and its own "then run again" did nothing once the server
 	ran its own Chromium."""
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	left = RuntimeError(
 		'remote-debugging-setup: /x/DevToolsActivePort is left from an earlier browser session and another process now '
@@ -955,7 +957,7 @@ def test_browser_exec_code_writes_text_files_as_utf8_on_a_cp1252_locale(monkeypa
 	Windows (cp1252). The agent's worker runs with PYTHONUTF8=1; browser_exec code now gets the same default."""
 	import locale
 
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	monkeypatch.setattr(locale, 'getpreferredencoding', lambda do_setlocale=True: 'cp1252')
 	monkeypatch.setattr(cli_mcp.CLIMCPServer, '_ensure_daemon', lambda self, code: None)
@@ -971,7 +973,7 @@ def test_cli_and_mcp_cdp_calls_wait_20_s_unless_the_caller_says_otherwise(monkey
 	navigation. capture.install (the CLI and --cli-mcp) gives every call the agent's 20 s; an explicit timeout stays."""
 	from browser_harness import helpers
 
-	from browser_use.repl import capture
+	from browse_dev.repl import capture
 
 	sent = []
 	raw = lambda method, session_id=None, **params: sent.append((method, params.get('_response_timeout'))) or {}  # noqa: E731
@@ -989,7 +991,7 @@ def test_cli_and_mcp_cdp_calls_on_a_page_a_dialog_froze_say_so(monkeypatch, open
 	no dialog stays a timeout."""
 	from browser_harness import helpers
 
-	from browser_use.repl import capture
+	from browse_dev.repl import capture
 
 	sent, dialog = [], {'type': 'confirm', 'message': 'Leave?'}
 	pending = [dialog] if opened_by == 'before' else [None, dialog]
@@ -1012,13 +1014,13 @@ def test_cli_and_mcp_cdp_calls_on_a_page_a_dialog_froze_say_so(monkeypatch, open
 async def test_a_desktop_keeps_any_browser_it_can_set_up_and_never_installs_chromium(browser, tmp_path, monkeypatch):
 	"""1.0.1 review: on a desktop whose browser find_binary does not know (Brave, Arc, Dia, a Flatpak Chrome) --cli-mcp
 	fell back to its own Chromium and installed Playwright's (150 MB) inside one tool call. 1.0.0 set up the user's
-	browser there. A desktop with no browser at all gets the error naming `browser-use install`, never an install; one
+	browser there. A desktop with no browser at all gets the error naming `browse-dev install`, never an install; one
 	with only Snap Chromium says so, not 'no Chrome is installed'."""
 	from browser_harness import admin, daemon, helpers
 
-	from browser_use import Browser, harness_cloud
-	from browser_use.browser import local
-	from browser_use.mcp import cli_mcp
+	from browse_dev import Browser, harness_cloud
+	from browse_dev.browser import local
+	from browse_dev.mcp import cli_mcp
 
 	monkeypatch.setattr(admin, 'NAME', admin.NAME)
 	monkeypatch.setattr(helpers, 'NAME', helpers.NAME)
@@ -1049,7 +1051,7 @@ async def test_a_desktop_keeps_any_browser_it_can_set_up_and_never_installs_chro
 	if browser == 'brave':
 		assert (text, note, failed, attached) == ('1\n', ['Browser: your own Chrome (its tabs and logins).'], False, [1])
 		return
-	assert failed and not attached and text.startswith('Error: No browser to drive') and 'browser-use install' in text, text
+	assert failed and not attached and text.startswith('Error: No browser to drive') and 'browse-dev install' in text, text
 	why = 'only Snap Chromium is installed' if browser == 'snap' else 'no Chrome, Chromium or Edge is installed'
 	assert f'no Chrome to attach ({why}' in text, text
 
@@ -1059,9 +1061,9 @@ def test_cli_mcp_on_a_headless_box_opens_a_page_in_its_own_chromium(chrome_binar
 	"""End to end on a real Chromium: what a headless server's first browser_exec does."""
 	from browser_harness import admin, helpers
 
-	from browser_use import harness_cloud
-	from browser_use.browser import local
-	from browser_use.mcp import cli_mcp
+	from browse_dev import harness_cloud
+	from browse_dev.browser import local
+	from browse_dev.mcp import cli_mcp
 
 	monkeypatch.setattr(admin, 'NAME', admin.NAME)
 	monkeypatch.setattr(helpers, 'NAME', helpers.NAME)
@@ -1093,7 +1095,7 @@ def test_mcp_stray_prints_never_reach_the_protocol_stream(tmp_path):
 
 	env = {**os.environ, 'BU_CDP_URL': 'http://127.0.0.1:1', 'BU_NAME': f'butestmcp{os.getpid()}', 'HOME': str(tmp_path)}
 	proc = subprocess.Popen(
-		[sys.executable, '-m', 'browser_use', '--cli-mcp'],
+		[sys.executable, '-m', 'browse_dev', '--cli-mcp'],
 		stdin=subprocess.PIPE,
 		stdout=subprocess.PIPE,
 		stderr=subprocess.PIPE,
@@ -1136,7 +1138,7 @@ def test_concurrent_cold_starts_against_a_cdp_url_spawn_one_daemon_at_a_time(mon
 
 	from browser_harness import admin
 
-	from browser_use import harness_cloud
+	from browse_dev import harness_cloud
 
 	listener = socket.create_server(('127.0.0.1', 0))  # a refused BU_CDP_URL now fails before the spawn lock
 	monkeypatch.setenv('BU_CDP_URL', f'http://127.0.0.1:{listener.getsockname()[1]}')
@@ -1171,8 +1173,8 @@ def test_mcp_own_chromium_ignores_a_stale_cloud_marker_and_starts_one_at_a_time(
 	from browser_harness import _ipc as ipc
 	from browser_harness import admin, helpers
 
-	from browser_use import harness_cloud
-	from browser_use.mcp import cli_mcp
+	from browse_dev import harness_cloud
+	from browse_dev.mcp import cli_mcp
 
 	monkeypatch.setattr(admin, 'NAME', admin.NAME)
 	monkeypatch.setattr(helpers, 'NAME', helpers.NAME)
@@ -1210,7 +1212,7 @@ def test_mcp_servers_keep_their_daemons_apart_with_bh_runtime_dir_set(tmp_path):
 	a local call found 'Daemon mcp-<pid> is already running' (the local one)."""
 	code = (
 		'from browser_harness import _ipc as ipc, admin\n'
-		'from browser_use.mcp import cli_mcp\n'
+		'from browse_dev.mcp import cli_mcp\n'
 		's = cli_mcp.CLIMCPServer()\n'
 		'print(ipc._sock_path(s._remote) != ipc._sock_path(admin.NAME), ipc.pid_path(s._remote) != ipc.pid_path(admin.NAME))\n'
 	)
@@ -1223,7 +1225,7 @@ def test_mcp_servers_keep_their_daemons_apart_with_bh_runtime_dir_set(tmp_path):
 def test_mcp_with_allowed_domains_refuses_a_blocked_url_in_so_many_words():
 	"""rr-climcp 3: --mcp with allowed_domains kept the page on about:blank, but new_tab() returned success and the next
 	page_info() failed with 'Inspected target navigated or closed': the model was never told the domain is blocked."""
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	mcp = cli_mcp.CLIMCPServer(own_browser=True, allowed_domains=['example.com'])
 	for code in (
@@ -1240,7 +1242,7 @@ def test_mcp_with_allowed_domains_has_no_cloud_browser_to_escape_them(monkeypatc
 	cdp/js navigations, clicks and redirects open any site."""
 	from browser_harness import admin
 
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	monkeypatch.setattr(admin, 'start_remote_daemon', lambda *a, **k: pytest.fail('started a cloud browser'))
 	mcp = cli_mcp.CLIMCPServer(own_browser=True, allowed_domains=['example.com'])
@@ -1253,14 +1255,14 @@ def test_mcp_with_allowed_domains_has_no_cloud_browser_to_escape_them(monkeypatc
 
 
 def test_mcp_http_get_is_plain_http_from_this_machine_even_with_a_key(monkeypatch):
-	"""Fable 1.0.0: without domain rules, --cli-mcp kept browser-harness's http_get, which with BROWSER_USE_API_KEY set
+	"""Fable 1.0.0: without domain rules, --cli-mcp kept browser-harness's http_get, which with BROWSE_DEV_API_KEY set
 	sent the URL and its headers (Authorization, cookies) to the fetch-use proxy instead of fetching it here."""
 	import threading
 	from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 	import fetch_use
 
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	seen = []
 
@@ -1276,7 +1278,7 @@ def test_mcp_http_get_is_plain_http_from_this_machine_even_with_a_key(monkeypatc
 
 	server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
 	threading.Thread(target=server.serve_forever, daemon=True).start()
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'bu_test')
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'bu_test')
 	monkeypatch.setattr(fetch_use, 'fetch_sync', lambda *a, **k: pytest.fail('http_get went through fetch-use'))
 	url = f'http://127.0.0.1:{server.server_address[1]}/internal'
 	try:

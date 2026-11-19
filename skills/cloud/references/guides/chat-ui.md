@@ -1,6 +1,6 @@
 # Guide: Building a Chat Interface
 
-Build a conversational UI where users chat with a Browser Use agent and watch it work in real-time.
+Build a conversational UI where users chat with a Browse Dev agent and watch it work in real-time.
 
 ## Table of Contents
 - [Prerequisites](#prerequisites)
@@ -20,7 +20,7 @@ Build a conversational UI where users chat with a Browser Use agent and watch it
 
 - You have a web app (or are building one) — Next.js/React shown, but the SDK calls work from any backend
 - You're using the **Cloud API** because you need `liveUrl` for real-time browser streaming
-- `BROWSER_USE_API_KEY` from https://cloud.browser-use.com/new-api-key
+- `BROWSE_DEV_API_KEY` from https://cloud.browser-use.com/new-api-key
 
 ## Architecture
 
@@ -39,7 +39,7 @@ Uses both SDK versions — v3 for sessions/messages, v2 for profiles (not on v3 
 import { BrowserUse as BrowserUseV3 } from "browser-use-sdk/v3";
 import { BrowserUse as BrowserUseV2 } from "browser-use-sdk";
 
-const apiKey = process.env.NEXT_PUBLIC_BROWSER_USE_API_KEY ?? "";
+const apiKey = process.env.NEXT_PUBLIC_BROWSE_DEV_API_KEY ?? "";
 const v3 = new BrowserUseV3({ apiKey });
 const v2 = new BrowserUseV2({ apiKey });
 ```

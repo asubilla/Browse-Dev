@@ -1,6 +1,6 @@
 # Guide: Browser-Use as a Subagent
 
-Delegate entire web tasks to browser-use from your orchestrator. Task in, result out — browser-use handles all browsing autonomously.
+Delegate entire web tasks to browse-dev from your orchestrator. Task in, result out — browse-dev handles all browsing autonomously.
 
 ## Table of Contents
 - [When to Use This Pattern](#when-to-use-this-pattern)
@@ -16,7 +16,7 @@ Delegate entire web tasks to browser-use from your orchestrator. Task in, result
 
 ## When to Use This Pattern
 
-Your system has an orchestrator — some agent, pipeline, or workflow engine that coordinates multiple capabilities. At some point it decides "I need data from the web" or "I need to interact with a website." It delegates to browser-use, which autonomously navigates, clicks, extracts, and returns a result. The orchestrator never touches the browser.
+Your system has an orchestrator — some agent, pipeline, or workflow engine that coordinates multiple capabilities. At some point it decides "I need data from the web" or "I need to interact with a website." It delegates to browse-dev, which autonomously navigates, clicks, extracts, and returns a result. The orchestrator never touches the browser.
 
 **Use subagent when:**
 - You want a black box: task in → result out
@@ -49,22 +49,22 @@ read from the environment.
 ```bash
 # 1. Fire off a run
 curl -X POST https://api.browser-use.com/api/v4/runs \
-  -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY" \
+  -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"task": "Find the top HN post and return title and URL"}'
 # Returns the run with its id and sessionId
 
 # 2. Poll the lightweight status route until completed, failed or cancelled
-curl https://api.browser-use.com/api/v4/runs/RUN_ID/status -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY"
+curl https://api.browser-use.com/api/v4/runs/RUN_ID/status -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY"
 
 # 3. Get the result once
-curl https://api.browser-use.com/api/v4/runs/RUN_ID -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY"
+curl https://api.browser-use.com/api/v4/runs/RUN_ID -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY"
 ```
 
 Only `completed` means success; the result is a string to parse and validate (see [API v4](../api-v4.md)). Polling
 has no built-in limit: if you stop polling, the run keeps going and billing, so cancel it through the runs cancel
 route; do not blindly retry the POST after an ambiguous failure, which can start a second paid run. The
-`browser-use` CLI (1.0) drives a browser itself: `browser-use login` stores the key, and `start_remote_daemon()` in
+`browse-dev` CLI (1.0) drives a browser itself: `browse-dev login` stores the key, and `start_remote_daemon()` in
 the piped Python starts a cloud browser.
 
 ---
@@ -152,7 +152,7 @@ Add to MCP config:
 ```json
 {
   "mcpServers": {
-    "browser-use": {
+    "browse-dev": {
       "url": "https://api.browser-use.com/mcp",
       "headers": { "X-Browser-Use-API-Key": "YOUR_KEY" }
     }
@@ -164,10 +164,10 @@ The agent gets a `browser_task` tool. It calls it with a task description, gets 
 
 ### Local MCP (free, open-source)
 
-The `retry_with_browser_use_agent` tool delegates an entire task to the local Agent:
+The `retry_with_browse_dev_agent` tool delegates an entire task to the local Agent:
 
 ```bash
-uvx --from 'browser-use[cli]' browser-use --mcp
+uvx --from 'browse-dev[cli]' browse-dev --mcp
 ```
 
 ---
@@ -181,19 +181,19 @@ uvx --from 'browser-use[cli]' browser-use --mcp
 ```bash
 # 1. Create task
 curl -X POST https://api.browser-use.com/api/v2/tasks \
-  -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY" \
+  -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"task": "Find the top HN post and return title+URL"}'
 # → {"id": "task-uuid", "sessionId": "session-uuid"}
 
 # 2. Poll status
 curl https://api.browser-use.com/api/v2/tasks/<task-id>/status \
-  -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY"
+  -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY"
 # → {"status": "finished"}
 
 # 3. Get result
 curl https://api.browser-use.com/api/v2/tasks/<task-id> \
-  -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY"
+  -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY"
 # → Full TaskView with output, steps, outputFiles
 ```
 
@@ -212,13 +212,13 @@ Or use webhooks for event-driven workflows (see `../features.md`).
 ### Error handling
 
 ```python
-from browser_use_sdk import AsyncBrowserUse, BrowserUseError
+from browser_use_sdk import AsyncBrowserUse, BrowseDevError
 
 try:
     result = await client.run(task, max_cost_usd=0.10)
 except TimeoutError:
     pass  # Polling timed out (5 min default)
-except BrowserUseError as e:
+except BrowseDevError as e:
     pass  # API error
 ```
 

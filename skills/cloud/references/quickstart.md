@@ -17,7 +17,7 @@
 
 ## Overview
 
-Browser Use Cloud is the hosted platform for web automation. Stealth browsers with anti-fingerprinting, CAPTCHA solving, residential proxies in 195+ countries. Usage-based pricing via API keys.
+Browse Dev Cloud is the hosted platform for web automation. Stealth browsers with anti-fingerprinting, CAPTCHA solving, residential proxies in 195+ countries. Usage-based pricing via API keys.
 
 - Web app: https://cloud.browser-use.com/
 - API base: `https://api.browser-use.com/api/v2/`
@@ -33,7 +33,7 @@ pip install browser-use-sdk
 
 ```python
 from browser_use_sdk import BrowserUse
-client = BrowserUse()  # Uses BROWSER_USE_API_KEY env var
+client = BrowserUse()  # Uses BROWSE_DEV_API_KEY env var
 ```
 
 ### TypeScript
@@ -44,13 +44,13 @@ npm install browser-use-sdk
 
 ```typescript
 import BrowserUse from 'browser-use-sdk';
-const client = new BrowserUse();  // Uses BROWSER_USE_API_KEY env var
+const client = new BrowserUse();  // Uses BROWSE_DEV_API_KEY env var
 ```
 
 ### cURL
 
 ```bash
-export BROWSER_USE_API_KEY=your-key
+export BROWSE_DEV_API_KEY=your-key
 ```
 
 ## First Task
@@ -66,7 +66,7 @@ print(result.output)
 
 ```bash
 curl -X POST https://api.browser-use.com/api/v2/tasks \
-     -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY" \
+     -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY" \
      -H "Content-Type: application/json" \
      -d '{"task": "Search for the top Hacker News post and return the title and url."}'
 ```
@@ -96,7 +96,7 @@ Every session has a `liveUrl`:
 
 ```bash
 curl https://api.browser-use.com/api/v2/sessions/<sessionId> \
-     -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY"
+     -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY"
 ```
 
 Open the `liveUrl` to watch the agent work in real-time.
@@ -110,14 +110,14 @@ $0.01 init + per-step (varies by model):
 
 | Model | Per Step |
 |-------|---------|
-| Browser Use LLM | $0.002 |
-| Browser Use 2.0 | $0.006 |
+| Browse Dev LLM | $0.002 |
+| Browse Dev 2.0 | $0.006 |
 | Gemini Flash Lite | $0.005 |
 | GPT-4.1 Mini | $0.004 |
 | O3 | $0.03 |
 | Claude Sonnet 4.6 | $0.05 |
 
-Typical task: 10 steps = ~$0.03 (with Browser Use LLM)
+Typical task: 10 steps = ~$0.03 (with Browse Dev LLM)
 
 ### V3 API (Token-Based)
 | Model | Input/1M | Output/1M |
@@ -151,7 +151,7 @@ Current prices: https://browser-use.com/pricing.md
 ## FAQ & Troubleshooting
 
 **Slow tasks?**
-- Switch models (Browser Use LLM is fastest)
+- Switch models (Browse Dev LLM is fastest)
 - Set `start_url` to skip navigation
 - Use closer proxy country
 
@@ -177,7 +177,7 @@ Current prices: https://browser-use.com/pricing.md
 **Stop a session:**
 ```bash
 curl -X PATCH https://api.browser-use.com/api/v2/sessions/<id> \
-     -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY" \
+     -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY" \
      -H "Content-Type: application/json" \
      -d '{"action": "stop"}'
 ```

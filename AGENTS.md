@@ -2,7 +2,7 @@
 
 Guidance for coding agents working in this repository (CLAUDE.md has the same content).
 
-Browser Use 1.0 is a browser agent on [Pydantic AI](https://ai.pydantic.dev). The model does not pick one action per
+Browse Dev 1.0 is a browser agent on [Pydantic AI](https://ai.pydantic.dev). The model does not pick one action per
 step from a DOM dump: it writes Python in one persistent REPL that has the
 [browser-harness](https://github.com/browser-use/browser-harness) helpers and raw CDP. The 0.x public API (`Agent`,
 `Browser`, `Tools`, `run()`, `final_result()`) is kept on top; MIGRATING.md lists every 0.x option and its 1.0 answer.
@@ -10,23 +10,23 @@ step from a DOM dump: it writes Python in one persistent REPL that has the
 ## Architecture
 
 ```
-Agent(task, llm, browser).run()                  browser_use/agent/service.py   0.x API, telemetry, lifecycle
-  -> resolve_model(llm)                          browser_use/llm/__init__.py    bu-fast gateway default, ChatOpenAI/Anthropic/Google, model strings
-  -> Browser.start() -> env for the worker       browser_use/browser/browser.py cloud (API v4, default) | 'chromium' (local.py) | 'chrome' (harness daemon) | cdp_url
-  -> run(agent, task, Session)                   browser_use/agent/loop.py      Pydantic AI loop: python tool, finish / finish_from_repl,
+Agent(task, llm, browser).run()                  browse_dev/agent/service.py   0.x API, telemetry, lifecycle
+  -> resolve_model(llm)                          browse_dev/llm/__init__.py    bu-fast gateway default, ChatOpenAI/Anthropic/Google, model strings
+  -> Browser.start() -> env for the worker       browse_dev/browser/browser.py cloud (API v4, default) | 'chromium' (local.py) | 'chrome' (harness daemon) | cdp_url
+  -> run(agent, task, Session)                   browse_dev/agent/loop.py      Pydantic AI loop: python tool, finish / finish_from_repl,
                                                                                 image pruning, delivery guards, budgets, partial results
-       python(code) -> Repl.call()               browser_use/repl/session.py    parent side: spawns the worker, allowlisted env, redaction
-                    -> worker process            browser_use/repl/worker.py     runs cells; helpers, screenshot, checkpoint, type_secret
-                       mode='ultrafast' adds bu  browser_use/ax.py              accessibility-tree helpers (port of Browser Use Pi ax.ts)
-  <- AgentHistoryList                            browser_use/agent/views.py     status, text/output, success, partial, usage, cost_usd, messages
+       python(code) -> Repl.call()               browse_dev/repl/session.py    parent side: spawns the worker, allowlisted env, redaction
+                    -> worker process            browse_dev/repl/worker.py     runs cells; helpers, screenshot, checkpoint, type_secret
+                       mode='ultrafast' adds bu  browse_dev/ax.py              accessibility-tree helpers (port of Browse Dev Pi ax.ts)
+  <- AgentHistoryList                            browse_dev/agent/views.py     status, text/output, success, partial, usage, cost_usd, messages
 ```
 
-- The system prompt is `browser_use/agent/prompt.py`. It is evaluated; do not edit it casually.
+- The system prompt is `browse_dev/agent/prompt.py`. It is evaluated; do not edit it casually.
 - The REPL worker is a child process in its own process group: a cell timeout kills the tree and restarts it. Files
   and browser state survive, Python variables do not.
 - Secrets (`sensitive_data`) are redacted from specific channels (listed in "Trust model" in MIGRATING.md), not sandboxed.
-- `browser-use` CLI and `--cli-mcp` (`browser_use/cli.py`, `browser_use/mcp/`) pipe Python to browser-harness.
-- `browser_use/skills/` ships the `browser-use` agent skill and its installer.
+- `browse-dev` CLI and `--cli-mcp` (`browse_dev/cli.py`, `browse_dev/mcp/`) pipe Python to browser-harness.
+- `browse_dev/skills/` ships the `browse-dev` agent skill and its installer.
 
 ## Development
 

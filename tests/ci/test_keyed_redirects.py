@@ -1,4 +1,4 @@
-"""GHSA-565j: a request that carries a Browser Use or provider API key never follows a redirect. urllib copies every
+"""GHSA-565j: a request that carries a Browse Dev or provider API key never follows a redirect. urllib copies every
 header to the new URL, so an endpoint that answered 302 to another origin received the key. No browser."""
 
 import threading
@@ -55,25 +55,26 @@ def origins():
 
 
 def test_no_keyed_request_follows_a_redirect_to_another_origin(origins, monkeypatch):
-	from browser_use import ChatBrowserUse, cli
-	from browser_use.browser import browser as browser_mod
-	from browser_use.search import SearchError, WebSearch, search_url
+	from browse_dev import ChatBrowseDev, cli
+	from browse_dev.browser import browser as browser_mod
+	from browse_dev.search import SearchError, WebSearch, search_url
 
 	first, seen = origins
 	search = WebSearch(KEY, search_url(f'{first}/api/v4/llm/v1'))
 	with pytest.raises(SearchError, match='HTTP 302'):
 		search('q')
 	assert search.preflight() is None  # a 3xx is not a verdict on the key: each search() reports it
-	assert 'HTTP 302' in (ChatBrowserUse('bu-fast', api_key=KEY, base_url=f'{first}/api/v4/llm/v1').preflight() or '')
+	assert 'HTTP 302' in (ChatBrowseDev('bu-fast', api_key=KEY, base_url=f'{first}/api/v4/llm/v1').preflight() or '')
 
-	monkeypatch.setenv('BROWSER_USE_API_KEY', KEY)
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', KEY)
 	monkeypatch.setattr(browser_mod, 'CLOUD_API', f'{first}/api/v4')
 	with pytest.raises(RuntimeError, match='HTTP 302'):
 		browser_mod._cloud('/browsers', 'POST', {})
 
 	from browser_harness import auth
 
-	monkeypatch.setenv('BROWSER_USE_CLOUD_API_URL', first)
+	monkeypatch.setenv('BROWSE_DEV_CLOUD_API_URL', first)
+	monkeypatch.setenv('BROWSER_USE_CLOUD_API_URL', first)  # browser-harness reads its own name
 	monkeypatch.setattr(auth, '_read_manual_api_key', lambda: KEY)
 	assert cli._read_api_key_stdin() == KEY  # not a 401: stored, and the first cloud call reports it
 

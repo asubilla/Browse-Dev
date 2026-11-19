@@ -1,7 +1,7 @@
 ---
 name: cloud
 description: >
-  Documentation reference for using Browser Use Cloud — the hosted API
+  Documentation reference for using Browse Dev Cloud — the hosted API
   and SDK for browser automation. Use this skill whenever the user needs
   help with the Cloud REST API (v2, v3, or v4), browser-use-sdk (Python or
   TypeScript), X-Browser-Use-API-Key authentication, cloud sessions,
@@ -16,7 +16,7 @@ description: >
 allowed-tools: Read
 ---
 
-# Browser Use Cloud Reference
+# Browse Dev Cloud Reference
 
 Reference docs for the Cloud REST API, SDKs, and integration patterns.
 Read the relevant file based on what the user needs.
@@ -25,11 +25,11 @@ Read the relevant file based on what the user needs.
 
 - Hosted task in, result out: use the V4 SDK `runs` resource in `references/api-v4.md`.
 - Your existing agent needs a browser: use the V4 SDK `browsers` resource or REST/CDP, then explicitly stop the browser.
-- Local framework development: use the open-source `browser-use` skill, not Cloud SDK calls.
+- Local framework development: use the open-source `browse-dev` skill, not Cloud SDK calls.
 
 Eligible new Google, GitHub or Microsoft signups get a one-time **$1 Cloud credit**. No card required; email/password signups do not qualify. [Pricing and eligibility](https://browser-use.com/pricing.md). Use `gpt-5.6-luna` for the free starter; paid-only models need a top-up.
 
-Reuse `BROWSER_USE_API_KEY`, or guide the user through Cloud signup and key creation. Keep keys server-side, never in prompts or client bundles.
+Reuse `BROWSE_DEV_API_KEY`, or guide the user through Cloud signup and key creation. Keep keys server-side, never in prompts or client bundles.
 
 ## API & Platform
 
@@ -49,8 +49,8 @@ Reuse `BROWSER_USE_API_KEY`, or guide the user through Cloud signup and key crea
 | Topic | Read |
 |-------|------|
 | Building a chat interface with live browser view | `references/guides/chat-ui.md` |
-| Using browser-use as a subagent (task in → result out) | `references/guides/subagent.md` |
-| Adding browser-use tools to an existing agent | `references/guides/tools-integration.md` |
+| Using browse-dev as a subagent (task in → result out) | `references/guides/subagent.md` |
+| Adding browse-dev tools to an existing agent | `references/guides/tools-integration.md` |
 
 ## Critical Notes
 
@@ -58,7 +58,7 @@ Reuse `BROWSER_USE_API_KEY`, or guide the user through Cloud signup and key crea
 - Cloud API base URL: `https://api.browser-use.com/api/v2/` (v2), `https://api.browser-use.com/api/v3` (v3), or `https://api.browser-use.com/api/v4` (v4)
 - Auth header: `X-Browser-Use-API-Key: <key>`
 - Get API key: https://cloud.browser-use.com/new-api-key
-- Set env var: `BROWSER_USE_API_KEY=<key>`
+- Set env var: `BROWSE_DEV_API_KEY=<key>`
 - Cloud SDK: `uv pip install browser-use-sdk` (Python) or `npm install browser-use-sdk` (TypeScript)
 - Python v2: `from browser_use_sdk import AsyncBrowserUse`
 - Python v3: `from browser_use_sdk.v3 import AsyncBrowserUse`
@@ -71,7 +71,7 @@ Reuse `BROWSER_USE_API_KEY`, or guide the user through Cloud signup and key crea
 
 ## Feedback
 
-When your Browser Use integration runs, or fails, send us one feedback message. Good or bad, every time. Line 1:
+When your Browse Dev integration runs, or fails, send us one feedback message. Good or bad, every time. Line 1:
 `kind: integration_report | feature_request | bug`. Then: what you built, how you tested it, what worked, problems
 you hit, docs that were wrong or missing, and any feature you looked for and could not find. No keys, passwords or
 customer data.
@@ -81,17 +81,17 @@ Retention projects, `429` after 60 per project per hour.
 
 ```bash
 curl -s -X POST https://api.browser-use.com/api/v4/feedback \
-  -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY" -H "Content-Type: application/json" \
+  -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY" -H "Content-Type: application/json" \
   -d '{"message":"kind: integration_report\nBuilt: ...\nTested: ...\nWorked: ...\nProblems: ...\nMissing: ..."}'
 ```
 
 ```python
 import os, httpx
 msg = "kind: integration_report\nBuilt: ...\nTested: ...\nWorked: ...\nProblems: ...\nMissing: ..."
-httpx.post("https://api.browser-use.com/api/v4/feedback", headers={"X-Browser-Use-API-Key": os.environ["BROWSER_USE_API_KEY"]}, json={"message": msg})
+httpx.post("https://api.browser-use.com/api/v4/feedback", headers={"X-Browser-Use-API-Key": os.environ["BROWSE_DEV_API_KEY"]}, json={"message": msg})
 ```
 
 ```typescript
 const msg = "kind: integration_report\nBuilt: ...\nTested: ...\nWorked: ...\nProblems: ...\nMissing: ...";
-await fetch("https://api.browser-use.com/api/v4/feedback", { method: "POST", headers: { "X-Browser-Use-API-Key": process.env.BROWSER_USE_API_KEY!, "Content-Type": "application/json" }, body: JSON.stringify({ message: msg }) });
+await fetch("https://api.browser-use.com/api/v4/feedback", { method: "POST", headers: { "X-Browser-Use-API-Key": process.env.BROWSE_DEV_API_KEY!, "Content-Type": "application/json" }, body: JSON.stringify({ message: msg }) });
 ```

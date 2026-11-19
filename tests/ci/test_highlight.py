@@ -1,11 +1,11 @@
-"""Action highlights (port of Browser Use Pi src/highlight.ts) on a real headless Chrome; no provider calls."""
+"""Action highlights (port of Browse Dev Pi src/highlight.ts) on a real headless Chrome; no provider calls."""
 
 import pytest
 from conftest import script
 from PIL import Image
 
-from browser_use import Agent, Browser
-from browser_use.repl.highlight import DRAW_JS
+from browse_dev import Agent, Browser
+from browse_dev.repl.highlight import DRAW_JS
 
 PAGE = (
 	"data:text/html,<body style='margin:0;background:white'>"
@@ -16,7 +16,7 @@ CLICK = f"""
 import time
 new_tab({PAGE!r}); wait_for_load()
 click_at_xy(200, 140)
-on = lambda: js("!!document.querySelector('[data-browser-use-interaction-highlight]')")
+on = lambda: js("!!document.querySelector('[data-browse-dev-interaction-highlight]')")
 t = time.time()
 while not on() and time.time() - t < 3:
     time.sleep(0.05)
@@ -59,7 +59,7 @@ IFRAME = (
 	"width:400px;height:200px;border:0' srcdoc='<input style=position:absolute;left:50px;top:50px;width:200px;height:40px>'>"
 )
 # Two overlays in two documents, the earlier one still up when the screenshot is taken; `drawn`: it was on its page.
-IN_IFRAME = "js(\"!!document.querySelector('iframe').contentDocument.querySelector('[data-browser-use-interaction-highlight]')\")"
+IN_IFRAME = "js(\"!!document.querySelector('iframe').contentDocument.querySelector('[data-browse-dev-interaction-highlight]')\")"
 TWO = {
 	# a click into an input in an iframe draws there; typing draws around the iframe element in the top document
 	'iframe': f'import time; new_tab({IFRAME!r}); wait_for_load(); click_at_xy(200, 120); time.sleep(0.3); drawn = {IN_IFRAME}; type_text("hi")',

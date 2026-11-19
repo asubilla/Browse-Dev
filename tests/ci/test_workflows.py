@@ -40,7 +40,7 @@ def event(name: str, ref: str, prerelease: bool = False) -> NS:
 	],
 )
 def test_docker_images_are_never_built_for_a_release_candidate(github, builds):
-	"""Fable r4-6: tagging 1.0.0rc1 built and pushed browseruse/browseruse:1.0.0rc1 from a Dockerfile nobody ran on 1.0."""
+	"""Fable r4-6: tagging 1.0.0rc1 built and pushed browsedev/browsedev:1.0.0rc1 from a Dockerfile nobody ran on 1.0."""
 	job = yaml.safe_load((WORKFLOWS / 'docker.yml').read_text())['jobs']['build_publish_image']
 	assert gha_if(job.get('if', 'true'), github) is builds
 
@@ -72,7 +72,7 @@ def test_lock_only_dependency_updates_rebuild_the_docker_image_on_pull_requests(
 
 
 def test_the_wheel_smoke_test_imports_the_wheel_not_the_checkout():
-	"""`python -c` puts the cwd first on sys.path: run from the repo root it imports ./browser_use, not the wheel."""
+	"""`python -c` puts the cwd first on sys.path: run from the repo root it imports ./browse_dev, not the wheel."""
 	steps = yaml.safe_load((WORKFLOWS / 'publish.yml').read_text())['jobs']['publish_to_pypi']['steps']
 	script = next(step['run'] for step in steps if step.get('name') == 'Smoke test the wheel in a fresh venv')
 	lines = script.splitlines()

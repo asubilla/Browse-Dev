@@ -1,4 +1,4 @@
-"""Browser lifecycle with the Browser Use Cloud HTTP API and the harness daemon mocked. No network, no browser."""
+"""Browser lifecycle with the Browse Dev Cloud HTTP API and the harness daemon mocked. No network, no browser."""
 
 import json
 import subprocess
@@ -7,9 +7,9 @@ import sys
 import pytest
 from conftest import script
 
-from browser_use import Agent, Browser
-from browser_use.browser import browser as browser_mod
-from browser_use.exceptions import MissingAPIKeyError
+from browse_dev import Agent, Browser
+from browse_dev.browser import browser as browser_mod
+from browse_dev.exceptions import MissingAPIKeyError
 
 
 @pytest.fixture
@@ -29,7 +29,7 @@ def cloud(monkeypatch):
 			return {'files': [], 'hasMore': False}
 		return {}
 
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'fake-test-key')
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'fake-test-key')
 	monkeypatch.setattr(browser_mod, '_cloud', fake_cloud)
 	monkeypatch.setattr(browser_mod, '_ws_url', lambda url: 'ws://fake.test/devtools/browser/x')
 	monkeypatch.setattr(admin, 'ensure_daemon', lambda *a, **k: calls.append(('daemon', 'start', k.get('name'))))
@@ -105,7 +105,7 @@ def test_chromes_default_profile_dir_is_refused_as_user_data_dir():
 def test_0x_browser_options_name_their_1_0_alternative(option, instead):
 	"""M37: 51 of 67 0.x Browser options got a generic "not a 1.0 option" instead of the removed error MIGRATING.md
 	promises, with the alternative it lists."""
-	with pytest.raises(TypeError, match=rf'^Browser\({option}=\.\.\.\) was removed in browser-use 1\.0\.') as raised:
+	with pytest.raises(TypeError, match=rf'^Browser\({option}=\.\.\.\) was removed in browse-dev 1\.0\.') as raised:
 		Browser(**{option: True})
 	assert instead in str(raised.value)
 
@@ -212,7 +212,7 @@ async def test_a_rejected_provider_key_or_unknown_model_never_creates_a_cloud_br
 	import re
 	import urllib.error
 
-	from browser_use import ChatAnthropic, ChatGoogle, ChatOpenAI
+	from browse_dev import ChatAnthropic, ChatGoogle, ChatOpenAI
 
 	asked = []
 
@@ -228,7 +228,7 @@ async def test_a_rejected_provider_key_or_unknown_model_never_creates_a_cloud_br
 			raise urllib.error.HTTPError(url, 404, 'Not Found', {}, io.BytesIO(b'{"error": "model: claude-nonexistent-9"}'))  # type: ignore[arg-type]
 		return io.BytesIO(b'{}')
 
-	monkeypatch.setattr('browser_use.llm.urlopen_keyed', urlopen)
+	monkeypatch.setattr('browse_dev.llm.urlopen_keyed', urlopen)
 	for var in ('ANTHROPIC_BASE_URL', 'OPENAI_BASE_URL'):  # the official endpoints, whatever this machine points at
 		monkeypatch.delenv(var, raising=False)
 	for llm, expect in (
@@ -259,8 +259,8 @@ def test_preflight_fails_only_on_a_bad_key_or_model_and_only_asks_google_itself(
 	from pydantic_ai.providers.anthropic import AnthropicProvider
 	from pydantic_ai.providers.google import GoogleProvider
 
-	from browser_use import ChatAnthropic, ChatGoogle, ChatOpenAI
-	from browser_use.llm import provider_preflight, resolve_model
+	from browse_dev import ChatAnthropic, ChatGoogle, ChatOpenAI
+	from browse_dev.llm import provider_preflight, resolve_model
 
 	asked, answers = [], {}
 
@@ -269,7 +269,7 @@ def test_preflight_fails_only_on_a_bad_key_or_model_and_only_asks_google_itself(
 		code, body = answers[request.full_url]
 		raise urllib.error.HTTPError(request.full_url, code, 'x', {}, io.BytesIO(body.encode()))  # type: ignore[arg-type]
 
-	monkeypatch.setattr('browser_use.llm.urlopen_keyed', urlopen)
+	monkeypatch.setattr('browse_dev.llm.urlopen_keyed', urlopen)
 	for var in ('ANTHROPIC_BASE_URL', 'OPENAI_BASE_URL'):
 		monkeypatch.delenv(var, raising=False)
 	version = resolve_model(ChatGoogle('gemini-2.5-flash', api_key='bad'))[0].client._api_client._http_options.api_version
@@ -312,8 +312,8 @@ def test_google_preflight_asks_the_api_version_the_model_runs_on(monkeypatch):
 	import io
 	import urllib.error
 
-	from browser_use import ChatGoogle
-	from browser_use.llm import provider_preflight, resolve_model
+	from browse_dev import ChatGoogle
+	from browse_dev.llm import provider_preflight, resolve_model
 
 	asked = []
 
@@ -327,18 +327,18 @@ def test_google_preflight_asks_the_api_version_the_model_runs_on(monkeypatch):
 		body = f'{{"error": {{"code": 404, "message": "models/gemini-flash-latest is not found for API version {version}"}}}}'
 		raise urllib.error.HTTPError(request.full_url, 404, 'x', {}, io.BytesIO(body.encode()))  # type: ignore[arg-type]
 
-	monkeypatch.setattr('browser_use.llm.urlopen_keyed', urlopen)
+	monkeypatch.setattr('browse_dev.llm.urlopen_keyed', urlopen)
 	assert 'gemini-flash-latest is not a model this google key can use (404)' in (provider_preflight(model) or ''), asked
 	assert asked == [f'https://generativelanguage.googleapis.com/{version}/models/gemini-flash-latest']
 
 
 async def test_a_preflight_error_never_shows_a_secret(cloud, monkeypatch, tmp_path, caplog):
 	"""Review: the preflight error went to the log and result.error verbatim, past sensitive_data redaction."""
-	from browser_use import ChatOpenAI
+	from browse_dev import ChatOpenAI
 
 	secret = 'hunter2-Zq9-long'
 	monkeypatch.setattr(
-		'browser_use.agent.service.provider_preflight', lambda model: f'openai rejected the API key (401): {secret}'
+		'browse_dev.agent.service.provider_preflight', lambda model: f'openai rejected the API key (401): {secret}'
 	)
 	agent = Agent(
 		't', ChatOpenAI('gpt-6-luna', api_key='sk-x'), browser=Browser(), workspace=tmp_path, sensitive_data={'pw': secret}
@@ -361,7 +361,7 @@ async def test_a_cloud_browser_that_fails_to_start_returns_the_preflight_error_s
 	same result shape, the browser is stopped, and run() never raises after a billed browser started."""
 	from browser_harness import admin
 
-	from browser_use import ChatOpenAI
+	from browse_dev import ChatOpenAI
 
 	secret = 'hunter2-Zq9-long'
 	if fails == 'create':
@@ -369,7 +369,7 @@ async def test_a_cloud_browser_that_fails_to_start_returns_the_preflight_error_s
 
 		def cloud_402(path, method='GET', body=None):
 			if method == 'POST' and path == '/browsers':
-				raise RuntimeError(f'Browser Use Cloud POST /browsers failed: HTTP 402 out of credits ({secret}).')
+				raise RuntimeError(f'Browse Dev Cloud POST /browsers failed: HTTP 402 out of credits ({secret}).')
 			return fake_cloud(path, method, body)
 
 		monkeypatch.setattr(browser_mod, '_cloud', cloud_402)
@@ -379,13 +379,13 @@ async def test_a_cloud_browser_that_fails_to_start_returns_the_preflight_error_s
 			raise RuntimeError(f'daemon could not attach ({secret})')
 
 		monkeypatch.setattr(admin, 'ensure_daemon', no_daemon)
-	monkeypatch.setattr('browser_use.agent.service.provider_preflight', lambda model: None)
+	monkeypatch.setattr('browse_dev.agent.service.provider_preflight', lambda model: None)
 	llm = ChatOpenAI('gpt-6-luna', api_key='sk-x')
 	result = await Agent('t', llm, browser=Browser(), workspace=tmp_path, sensitive_data={'pw': secret}).run()
 	assert result.status == 'error' and ('HTTP 402' if fails == 'create' else 'could not attach') in (result.error or '')
 	assert secret not in (result.error or '') and '<secret:pw>' in (result.error or '')
 	assert stops(cloud) == ([] if fails == 'create' else ['/browsers/b1']) and not browser_mod._LIVE
-	monkeypatch.setattr('browser_use.agent.service.provider_preflight', lambda model: 'openai rejected the API key (401)')
+	monkeypatch.setattr('browse_dev.agent.service.provider_preflight', lambda model: 'openai rejected the API key (401)')
 	preflight = await Agent('t', llm, browser=Browser(), workspace=tmp_path).run()
 	assert _shape(result) == _shape(preflight)
 
@@ -396,15 +396,15 @@ async def test_a_profile_name_that_matches_none_raises_from_run(cloud, monkeypat
 	Browser(cloud_profile_id='Gaming') naming no profile returned status='error' too, while MIGRATING.md says
 	configuration errors raise before any browser starts and a profile name that matches none raises with the list.
 	Nothing is launched or created first."""
-	from browser_use import ChatOpenAI
-	from browser_use.browser import local as _local
+	from browse_dev import ChatOpenAI
+	from browse_dev.browser import local as _local
 
 	root = tmp_path / 'Chrome'
 	(root / 'Default').mkdir(parents=True)
 	(root / 'Local State').write_text(json.dumps({'profile': {'info_cache': {'Default': {'name': 'Personal'}}}}))
 	monkeypatch.setattr(_local, 'chrome_user_data_dir', lambda: root)
 	monkeypatch.setattr(_local, 'find_binary', lambda *a, **k: '/nonexistent/chrome')
-	monkeypatch.setattr('browser_use.agent.service.provider_preflight', lambda model: None)
+	monkeypatch.setattr('browse_dev.agent.service.provider_preflight', lambda model: None)
 	browser = Browser('chrome', profile='Gaming') if kind == 'chrome' else Browser(cloud_profile_id='Gaming')
 	agent = Agent('t', ChatOpenAI('gpt-6-luna', api_key='sk-x'), browser=browser, workspace=tmp_path / 'w')
 	with pytest.raises(ValueError, match="No Chrome profiles match 'Gaming'.*'Personal'" if kind == 'chrome' else 'Gaming'):
@@ -493,20 +493,20 @@ def test_atexit_cleanup_stops_live_browsers(cloud):
 	],
 )
 def test_localhost_guard_spots_local_targets(task):
-	from browser_use.agent.service import LOCAL_TARGET
+	from browse_dev.agent.service import LOCAL_TARGET
 
 	assert LOCAL_TARGET.search(task)  # a warning only (test_agent.py), never a refusal
 
 
 @pytest.mark.parametrize('task', ['find local restaurants', 'compare 10.5 and 10.25', 'version 172.15.0.1'])
 def test_localhost_guard_ignores_normal_text(task):
-	from browser_use.agent.service import LOCAL_TARGET
+	from browse_dev.agent.service import LOCAL_TARGET
 
 	assert not LOCAL_TARGET.search(task)
 
 
 async def test_missing_key_raises_and_never_falls_back_to_local(cloud, monkeypatch):
-	monkeypatch.delenv('BROWSER_USE_API_KEY')  # and conftest points the stored-key file at nothing
+	monkeypatch.delenv('BROWSE_DEV_API_KEY')  # and conftest points the stored-key file at nothing
 	model, _ = script()
 	with pytest.raises(MissingAPIKeyError, match='new-api-key'):
 		await Agent('t', model).run()
@@ -593,8 +593,8 @@ async def test_a_cloud_browser_start_is_logged_at_info(cloud, caplog, monkeypatc
 	"""C21: Agent() with no browser= silently started a billed cloud browser; the only log line was DEBUG."""
 	import logging
 
-	monkeypatch.setattr(logging.getLogger('browser_use'), 'propagate', True)  # setup_logging turns it off
-	caplog.set_level(logging.INFO, logger='browser_use')
+	monkeypatch.setattr(logging.getLogger('browse_dev'), 'propagate', True)  # setup_logging turns it off
+	caplog.set_level(logging.INFO, logger='browse_dev')
 	browser = Browser()
 	await browser.start()
 	await browser.stop()
@@ -610,7 +610,7 @@ async def test_the_cloud_browser_id_is_never_logged_whole_or_put_in_a_command_li
 	import subprocess
 	from types import SimpleNamespace
 
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	secret_id = '0a1b2c3d-4e5f-6789-abcd-ef0123456789'
 	monkeypatch.setattr(
@@ -627,8 +627,8 @@ async def test_the_cloud_browser_id_is_never_logged_whole_or_put_in_a_command_li
 	monkeypatch.setattr(subprocess, 'Popen', popen)
 	# Windows starts the MCP reaper through WMI instead
 	monkeypatch.setattr(cli_mcp, '_spawn_outside_job', lambda args, env: spawned.append((args, env)) or True)
-	monkeypatch.setattr(logging.getLogger('browser_use'), 'propagate', True)  # setup_logging turns it off
-	caplog.set_level(logging.DEBUG, logger='browser_use')
+	monkeypatch.setattr(logging.getLogger('browse_dev'), 'propagate', True)  # setup_logging turns it off
+	caplog.set_level(logging.DEBUG, logger='browse_dev')
 	browser = Browser()
 	await browser.start()
 	await browser.stop()
@@ -636,7 +636,7 @@ async def test_the_cloud_browser_id_is_never_logged_whole_or_put_in_a_command_li
 	server._namespace = {}
 	monkeypatch.setattr(cli_mcp.harness_cloud, 'start', lambda *a, **k: {'id': secret_id})
 	server._start_remote()
-	assert 'Browser Use cloud browser 0a1b2c3d (us proxy' in caplog.text and secret_id not in caplog.text
+	assert 'Browse Dev cloud browser 0a1b2c3d (us proxy' in caplog.text and secret_id not in caplog.text
 	assert len(spawned) == 2  # the watchdog, the reaper
 	for args, env in spawned:
 		assert secret_id not in ' '.join(args) and env['BU_CLEANUP_BROWSER_ID'] == secret_id
@@ -649,12 +649,12 @@ async def test_downloads_lists_a_cloud_browsers_finished_files(cloud, monkeypatc
 	displayed, and the prompt points to it instead of the events."""
 	import io
 
-	from browser_use.agent.prompt import SYSTEM_PROMPT
+	from browse_dev.agent.prompt import SYSTEM_PROMPT
 
 	files = [{'path': 'report.csv', 'size': 4, 'url': 'u1'}, {'path': 'data.json', 'size': 2, 'url': 'u2'}]
 	with_downloads(monkeypatch, files)
 	monkeypatch.setattr(browser_mod.urllib.request, 'urlopen', lambda url, timeout=None, context=None: io.BytesIO(b'data'))
-	log = tmp_path / '.browser-use' / 'downloads.jsonl'  # what the worker logs when the tab shows a JSON page
+	log = tmp_path / '.browse-dev' / 'downloads.jsonl'  # what the worker logs when the tab shows a JSON page
 	log.parent.mkdir(parents=True)
 	log.write_text('{"json_page": "https://api.test/data?q=1"}\n{"name": "data.json", "url": "https://api.test/data.json"}\n')
 	model, seen = script(('python', {'code': 'print(downloads())'}), ('finish', {'success': True, 'result': 'ok'}))
@@ -671,7 +671,7 @@ def test_the_upload_advice_never_tells_the_agent_to_make_the_file(cloud):
 	open('upload.bin', 'wb').write(...) (the prompt said upload_file "takes local workspace paths"), uploaded 5-10 bytes
 	instead of the user's 25 B / 3 MB, and reported success. The base prompt also still sent it to hand-written DataTransfer
 	js, which upload_file does itself since remote uploads work."""
-	from browser_use.agent.prompt import SYSTEM_PROMPT
+	from browse_dev.agent.prompt import SYSTEM_PROMPT
 
 	agent = Agent('t', script()[0], browser=Browser())
 	agent._build()
@@ -846,7 +846,7 @@ async def test_stop_waits_for_a_running_download_and_its_cloud_listing(cloud, mo
 	listed; local: a .crdownload), and the cloud lists a finished download about a second after it completes."""
 	import io
 
-	from browser_use.repl import worker
+	from browse_dev.repl import worker
 
 	monkeypatch.setattr(worker, 'STATE', tmp_path)  # the REPL worker saw a.pdf finish and b.zip start
 	worker.CellStats().observe(
@@ -932,7 +932,7 @@ async def test_a_download_that_sends_only_page_events_never_holds_the_stop(monke
 	"""RC local-1: a tab whose session never got Browser.setDownloadBehavior (Browser('chrome') on yours, a tab another
 	client attached) sends only Page.download* events. Their completion was never counted, so stop() waited
 	DOWNLOADS_TIMEOUT_S (300 s) and warned that the finished files were lost."""
-	from browser_use.repl import worker
+	from browse_dev.repl import worker
 
 	def begin(guid):
 		return {
@@ -962,12 +962,12 @@ async def test_a_download_the_keep_alive_worker_saw_finish_never_holds_the_stop(
 	download's downloadWillBegin, the worker had no name for it, so the stop names it."""
 	import time
 
-	from browser_use.browser import local as _local
-	from browser_use.repl import worker
+	from browse_dev.browser import local as _local
+	from browse_dev.repl import worker
 
 	begin = {'method': 'Browser.downloadWillBegin', 'params': {'guid': 'a', 'url': 'https://h/a', 'suggestedFilename': 'a.bin'}}
-	monkeypatch.setattr(worker, 'STATE', tmp_path / '.browser-use')
-	(tmp_path / '.browser-use').mkdir()
+	monkeypatch.setattr(worker, 'STATE', tmp_path / '.browse-dev')
+	(tmp_path / '.browse-dev').mkdir()
 	(tmp_path / 'downloads').mkdir()
 	(tmp_path / 'downloads' / 'a').write_text('x')  # Chrome saves it as its guid
 	if worker_saw_begin:
@@ -985,7 +985,7 @@ async def test_a_download_the_keep_alive_worker_saw_finish_never_holds_the_stop(
 	browser = Browser('chromium')
 	browser._local = _local.LocalBrowser()  # a Chrome this Browser launched: its downloads are local files
 	browser._downloads_dir = tmp_path / 'downloads'
-	browser.note_downloads(tmp_path / '.browser-use' / 'downloads.jsonl')  # Agent.run's, as the run ends
+	browser.note_downloads(tmp_path / '.browse-dev' / 'downloads.jsonl')  # Agent.run's, as the run ends
 	started = time.monotonic()
 	assert await browser._finish_downloads() == 1
 	assert time.monotonic() - started < 5
@@ -998,7 +998,7 @@ async def test_a_cancelled_run_never_waits_for_a_running_download(cloud, monkeyp
 	import asyncio
 	import time
 
-	from browser_use.repl import worker
+	from browse_dev.repl import worker
 
 	monkeypatch.setattr(worker, 'STATE', tmp_path)
 	worker.CellStats().observe(
@@ -1390,7 +1390,7 @@ def test_json_copies_of_every_json_type_are_found_and_a_real_file_sharing_the_na
 	filter matched by name with ' (n)' stripped, so a real download named like a copy ('json (1).json') was dropped."""
 	import json
 
-	from browser_use.repl import worker
+	from browse_dev.repl import worker
 
 	stats, real = worker.CellStats(), 'https://httpbin.org/response-headers?Content-Type=application%2Fjson&x=1'
 	worker.STATE, saved = tmp_path, worker.STATE
@@ -1421,7 +1421,7 @@ def test_json_copies_of_every_json_type_are_found_and_a_real_file_sharing_the_na
 def test_a_json_page_the_cloud_browser_saved_is_not_announced_as_a_download(tmp_path, order):
 	"""Live: opening https://ipinfo.io/json on a cloud browser printed '[download started: json.json]' to the model,
 	which never downloaded anything (downloads() and result.downloads leave the copy out). A real download still is."""
-	from browser_use.repl import worker
+	from browse_dev.repl import worker
 
 	page = {
 		'method': 'Page.frameNavigated',
@@ -1472,7 +1472,7 @@ def test_json_copies_are_numbered_across_every_agent_on_one_cloud_browser(cloud,
 
 
 def test_worker_logs_downloads_and_json_pages_for_the_parent(tmp_path, monkeypatch):
-	from browser_use.repl import worker
+	from browse_dev.repl import worker
 
 	monkeypatch.setattr(worker, 'STATE', tmp_path)
 	s = worker.CellStats()
@@ -1542,7 +1542,7 @@ def test_signal_handlers_are_installed_on_the_main_thread_after_a_start_on_anoth
 
 SIGHUP_CHILD = """
 import asyncio, os, signal, sys
-from browser_use.browser import browser as b
+from browse_dev.browser import browser as b
 stopped = []
 class Fake:
 	def _stop_now(self):
@@ -1573,7 +1573,7 @@ def test_headers_raise_until_the_daemon_sends_them():
 @pytest.mark.parametrize('url', ['http://127.0.0.1:{port}', 'ws://127.0.0.1:{port}/devtools/browser/x?token=s3cret'])
 async def test_a_cdp_url_nothing_answers_on_names_the_cdp_url(url, tmp_path):
 	"""Live: Browser(cdp_url=...) with no browser there failed with a bare '<urlopen error [Errno 61] Connection
-	refused>' (http), or browser-harness's 'If you use Browser Use cloud, verify auth and get a fresh URL via
+	refused>' (http), or browser-harness's 'If you use Browse Dev cloud, verify auth and get a fresh URL via
 	start_remote_daemon()' (ws), which is not what a cdp_url user runs. The error names the cdp_url and its fix; a
 	token in the URL is never echoed."""
 	import socket

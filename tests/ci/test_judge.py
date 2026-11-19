@@ -4,10 +4,10 @@ import pytest
 from conftest import script
 from pydantic import ValidationError
 
-import browser_use.agent.service as service
-from browser_use import Agent, Browser
-from browser_use.agent.judge import JUDGE_PROMPT, Judgement
-from browser_use.agent.views import AgentHistoryList
+import browse_dev.agent.service as service
+from browse_dev import Agent, Browser
+from browse_dev.agent.judge import JUDGE_PROMPT, Judgement
+from browse_dev.agent.views import AgentHistoryList
 
 VERDICT = {
 	'success': True,
@@ -35,7 +35,7 @@ def fake_browser(monkeypatch):
 @pytest.fixture
 def sent(monkeypatch):
 	"""The properties each agent_event would send, built as the telemetry thread builds them."""
-	import browser_use.telemetry.service as telemetry
+	import browse_dev.telemetry.service as telemetry
 
 	events = []
 
@@ -82,7 +82,7 @@ async def test_a_failed_judge_leaves_the_run_as_it_was_and_is_still_counted(fake
 
 
 async def test_the_judge_request_is_bounded(fake_browser, tmp_path):
-	from browser_use.agent.judge import MAX_PART_CHARS, MAX_TASK_CHARS, MAX_TRACE_CHARS
+	from browse_dev.agent.judge import MAX_PART_CHARS, MAX_TASK_CHARS, MAX_TRACE_CHARS
 
 	model, seen = script(FINISH, ('final_result', VERDICT))
 	huge = 'word ' * 200_000
@@ -97,9 +97,9 @@ async def test_a_responses_model_is_judged_streamed_at_low_effort(monkeypatch):
 	from pydantic_ai.models.openai import OpenAIResponsesModel
 	from pydantic_ai.providers.openai import OpenAIProvider
 
-	import browser_use.agent.judge as judge
-	from browser_use.agent.judge import judge_run
-	from browser_use.agent.loop import StreamedRequest
+	import browse_dev.agent.judge as judge
+	from browse_dev.agent.judge import judge_run
+	from browse_dev.agent.loop import StreamedRequest
 
 	built = {}
 
@@ -152,7 +152,7 @@ def test_more_than_five_gotchas_keep_the_first_five():
 
 
 def test_0x_judge_class_names_point_to_result_judgement():
-	import browser_use.agent.judge as judge
+	import browse_dev.agent.judge as judge
 
 	with pytest.raises(AttributeError, match=r'result\.judgement'):
 		judge.JudgementResult
@@ -192,7 +192,7 @@ async def test_the_whole_judgement_is_sent_scrubbed_when_telemetry_is_on(sent, f
 
 
 async def test_with_telemetry_off_nothing_is_sent(sent, fake_browser, tmp_path, monkeypatch):
-	import browser_use.telemetry.service as telemetry
+	import browse_dev.telemetry.service as telemetry
 
 	monkeypatch.setattr(telemetry.telemetry, 'enabled', False)
 	model, _ = script(FINISH, ('final_result', VERDICT))
@@ -210,7 +210,7 @@ def test_the_judge_gets_the_last_distinct_screenshots_and_the_final_page():
 	from pydantic_ai import BinaryContent
 	from pydantic_ai.messages import ModelRequest, ToolReturnPart
 
-	from browser_use.agent.judge import MAX_SCREENSHOTS, screenshots
+	from browse_dev.agent.judge import MAX_SCREENSHOTS, screenshots
 
 	def shot(n):
 		return BinaryContent(bytes([n]) * 8, media_type='image/jpeg')
@@ -231,8 +231,8 @@ async def test_the_screenshots_go_to_the_judge_as_images_after_the_text(monkeypa
 	from pydantic_ai import BinaryContent
 	from pydantic_ai.models.test import TestModel
 
-	import browser_use.agent.judge as judge
-	from browser_use.agent.judge import judge_run
+	import browse_dev.agent.judge as judge
+	from browse_dev.agent.judge import judge_run
 
 	sent = []
 
@@ -261,8 +261,8 @@ async def test_a_text_only_model_that_rejects_the_images_is_judged_from_the_text
 	from pydantic_ai.exceptions import ModelHTTPError
 	from pydantic_ai.models.test import TestModel
 
-	import browser_use.agent.judge as judge
-	from browser_use.agent.judge import judge_run
+	import browse_dev.agent.judge as judge
+	from browse_dev.agent.judge import judge_run
 
 	sent = []
 
@@ -287,7 +287,7 @@ async def test_a_text_only_model_that_rejects_the_images_is_judged_from_the_text
 async def test_the_final_page_is_taken_through_the_daemon_and_never_fails_the_run(fake_browser, tmp_path, monkeypatch):
 	import base64
 
-	import browser_use.browser.browser as browser_module
+	import browse_dev.browser.browser as browser_module
 
 	asked = []
 
@@ -327,8 +327,8 @@ async def test_an_error_that_is_not_about_images_is_not_retried(monkeypatch):
 	from pydantic_ai.exceptions import ModelHTTPError
 	from pydantic_ai.models.test import TestModel
 
-	import browser_use.agent.judge as judge
-	from browser_use.agent.judge import judge_run
+	import browse_dev.agent.judge as judge
+	from browse_dev.agent.judge import judge_run
 
 	sent = []
 
@@ -348,8 +348,8 @@ async def test_an_error_that_is_not_about_images_is_not_retried(monkeypatch):
 
 
 def test_a_hidden_tab_is_not_captured(monkeypatch):
-	import browser_use.browser.browser as browser_module
-	from browser_use import Browser
+	import browse_dev.browser.browser as browser_module
+	from browse_dev import Browser
 
 	asked = []
 

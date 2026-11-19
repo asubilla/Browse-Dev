@@ -1,5 +1,5 @@
-"""Browser Use Cloud captcha solver: solve_captcha() and the cell notice, against a fake CDP endpoint that speaks our
-cloud browser's BrowserUse.* methods and events. No browser, no cloud."""
+"""Browse Dev Cloud captcha solver: solve_captcha() and the cell notice, against a fake CDP endpoint that speaks our
+cloud browser's BrowseDev.* methods and events. No browser, no cloud."""
 
 import asyncio
 import json
@@ -9,12 +9,12 @@ import time
 
 import pytest
 
-from browser_use.repl import Repl
-from browser_use.repl.captcha import FINISHED, STARTED, Captcha
+from browse_dev.repl import Repl
+from browse_dev.repl.captcha import FINISHED, STARTED, Captcha
 
 
 class FakeCloudBrowser:
-	"""A CDP websocket with one page that answers BrowserUse.* like our cloud browser and broadcasts its events.
+	"""A CDP websocket with one page that answers BrowseDev.* like our cloud browser and broadcasts its events.
 	on_enable: events sent (with their delays) when the agent turns the solver on."""
 
 	def __init__(self, solver: bool = True):
@@ -46,14 +46,14 @@ class FakeCloudBrowser:
 				msg = json.loads(raw)
 				method, params = msg.get('method', ''), msg.get('params') or {}
 				reply: dict = {'id': msg['id'], 'result': self._answer(method, params)}
-				if method.startswith('BrowserUse.'):
+				if method.startswith('BrowseDev.'):
 					self.calls.append((method, params))
 					if not self.solver:
 						reply = {'id': msg['id'], 'error': {'code': -32601, 'message': f"'{method}' wasn't found"}}
 				if msg.get('sessionId'):
 					reply['sessionId'] = msg['sessionId']
 				await ws.send(json.dumps(reply))
-				if method == 'BrowserUse.setCaptchaSolverEnabled' and params.get('enabled') and self.solver:
+				if method == 'BrowseDev.setCaptchaSolverEnabled' and params.get('enabled') and self.solver:
 					for delay, event, data in self.on_enable:
 						self.loop.call_later(delay, self._broadcast, event, data)
 		finally:
@@ -69,9 +69,9 @@ class FakeCloudBrowser:
 			return {'targetId': 'T1'}
 		if method == 'Target.attachToTarget':
 			return {'sessionId': 'S1'}
-		if method == 'BrowserUse.getCaptchaSolverEnabled':
+		if method == 'BrowseDev.getCaptchaSolverEnabled':
 			return {'enabled': self.enabled}
-		if method == 'BrowserUse.setCaptchaSolverEnabled':
+		if method == 'BrowseDev.setCaptchaSolverEnabled':
 			self.enabled = params['enabled']
 			return {'enabled': self.enabled}
 		return {}
@@ -108,7 +108,7 @@ def cloud():
 	"""A fake cloud browser behind a named browser-harness daemon: (fake, REPL env) for a cloud-browser worker."""
 	from browser_harness import admin
 
-	from browser_use.browser.browser import _shutdown_daemon
+	from browse_dev.browser.browser import _shutdown_daemon
 
 	fake = FakeCloudBrowser()
 	name = f'bucaptcha{os.getpid()}{fake.ws.split(":")[2].split("/")[0]}'
@@ -129,7 +129,7 @@ def fake_captcha(enabled: bool, error: Exception | None = None):
 		calls.append((method, params))
 		if error:
 			raise error
-		if method == 'BrowserUse.setCaptchaSolverEnabled':
+		if method == 'BrowseDev.setCaptchaSolverEnabled':
 			state['enabled'] = params['enabled']
 		return {'enabled': state['enabled']}
 
@@ -144,7 +144,7 @@ def test_solve_waits_for_a_running_solve_and_never_turns_an_enabled_solver_off()
 	batches += [[started()], [], [finished(success=True)]]
 	r = c.solve(start_timeout=5, timeout=5)
 	assert (r['solved'], r['detail']) == (True, 'solved')
-	assert calls == [('BrowserUse.getCaptchaSolverEnabled', {})]  # on by default: left on, never toggled
+	assert calls == [('BrowseDev.getCaptchaSolverEnabled', {})]  # on by default: left on, never toggled
 
 	batches += [[started()], [finished(success=False)]]
 	assert c.solve(start_timeout=5, timeout=5)['detail'] == 'the solver failed'
@@ -154,19 +154,19 @@ def test_solve_turns_an_off_solver_on_and_back_off_unless_it_is_still_solving():
 	c, calls, batches = fake_captcha(enabled=False)
 	r = c.solve(start_timeout=0.3, timeout=0.3)
 	assert (r['solved'], r['detail']) == (False, 'the solver found no captcha on the page')
-	assert [p for m, p in calls if m == 'BrowserUse.setCaptchaSolverEnabled'] == [{'enabled': True}, {'enabled': False}]
+	assert [p for m, p in calls if m == 'BrowseDev.setCaptchaSolverEnabled'] == [{'enabled': True}, {'enabled': False}]
 
 	calls.clear()
 	batches.append([started()])
 	r = c.solve(start_timeout=0.3, timeout=0.5)
 	assert (r['detail'], r['next']) == ('still solving', 'call solve_captcha() again')
-	assert [p for m, p in calls if m == 'BrowserUse.setCaptchaSolverEnabled'] == [{'enabled': True}]  # left on
+	assert [p for m, p in calls if m == 'BrowseDev.setCaptchaSolverEnabled'] == [{'enabled': True}]  # left on
 
 	calls.clear()
 	batches.append([finished(success=True)])  # the next call picks up the solve that is still running
 	assert c.solve(start_timeout=0.3, timeout=5)['detail'] == 'solved'
 	# H11: then it goes off again; it stayed on for the rest of the session
-	assert [p for m, p in calls if m == 'BrowserUse.setCaptchaSolverEnabled'] == [{'enabled': False}]
+	assert [p for m, p in calls if m == 'BrowseDev.setCaptchaSolverEnabled'] == [{'enabled': False}]
 
 
 def test_a_solver_left_on_for_a_running_solve_goes_off_when_it_ends_even_after_a_worker_restart(tmp_path):
@@ -178,14 +178,14 @@ def test_a_solver_left_on_for_a_running_solve_goes_off_when_it_ends_even_after_a
 	assert c.solve(start_timeout=0.3, timeout=0.3)['detail'] == 'still solving'
 	calls.clear()
 	c.observe(dict(zip(('method', 'params'), finished(success=True))))  # the agent moved on; the solve ends
-	assert [p for m, p in calls if m == 'BrowserUse.setCaptchaSolverEnabled'] == [{'enabled': False}]
+	assert [p for m, p in calls if m == 'BrowseDev.setCaptchaSolverEnabled'] == [{'enabled': False}]
 
 	batches.append([started()])
 	assert c.solve(start_timeout=0.3, timeout=0.3)['detail'] == 'still solving'
 	restarted = Captcha(c.cdp, c.path)  # the next cell timed out: a new worker reads the saved state
 	calls.clear()
 	restarted.observe(dict(zip(('method', 'params'), finished(success=True))))
-	assert [p for m, p in calls if m == 'BrowserUse.setCaptchaSolverEnabled'] == [{'enabled': False}]
+	assert [p for m, p in calls if m == 'BrowseDev.setCaptchaSolverEnabled'] == [{'enabled': False}]
 
 
 def test_solve_never_turns_on_a_solver_the_user_turned_off():
@@ -199,7 +199,7 @@ def test_solve_never_turns_on_a_solver_the_user_turned_off():
 
 
 def test_solve_on_a_browser_without_a_solver_is_unavailable():
-	err = RuntimeError("{'code': -32601, 'message': \"'BrowserUse.getCaptchaSolverEnabled' wasn't found\"}")
+	err = RuntimeError("{'code': -32601, 'message': \"'BrowseDev.getCaptchaSolverEnabled' wasn't found\"}")
 	c, calls, _ = fake_captcha(enabled=False, error=err)
 	r = c.solve()
 	assert r['solved'] is False and r['detail'].startswith('solver unavailable: this browser has no captcha solver')
@@ -275,7 +275,7 @@ async def test_solve_captcha_through_the_daemon(cloud, tmp_path):
 		assert r['error'] is None, r
 		assert "'solved': True" in r['output'] and "'detail': 'solved'" in r['output']
 		assert '[captcha solver: solved recaptcha in 3s]' in r['output']
-		assert [p for m, p in fake.calls if m == 'BrowserUse.setCaptchaSolverEnabled'] == [
+		assert [p for m, p in fake.calls if m == 'BrowseDev.setCaptchaSolverEnabled'] == [
 			{'enabled': True},
 			{'enabled': False},
 		]
@@ -343,15 +343,15 @@ async def test_a_worker_restarted_by_a_cell_timeout_still_knows_the_running_solv
 	finally:
 		await repl.close()
 	Repl(tmp_path, env)  # a new Repl is a new browser session: it starts without the saved state
-	assert not (tmp_path / '.browser-use' / 'captcha.json').exists()
+	assert not (tmp_path / '.browse-dev' / 'captcha.json').exists()
 
 
 async def test_captcha_solver_false_turns_the_cloud_solver_off_at_start(monkeypatch):
 	"""captcha finding 6: 1.0 had no knob for the cloud solver; Browser(captcha_solver=False) was a generic TypeError and
 	MIGRATING.md said to delete it."""
-	from browser_use import Agent, Browser
-	from browser_use.agent.prompt import CAPTCHA_PROMPT, NO_CAPTCHA_PROMPT
-	from browser_use.browser import browser as browser_mod
+	from browse_dev import Agent, Browser
+	from browse_dev.agent.prompt import CAPTCHA_PROMPT, NO_CAPTCHA_PROMPT
+	from browse_dev.browser import browser as browser_mod
 
 	fake = FakeCloudBrowser()
 
@@ -359,7 +359,7 @@ async def test_captcha_solver_false_turns_the_cloud_solver_off_at_start(monkeypa
 		self.id = 'b1'
 		return fake.ws
 
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'fake-test-key')
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'fake-test-key')
 	monkeypatch.setattr(Browser, '_start_cloud', start_cloud)
 	monkeypatch.setattr(browser_mod, '_cloud', lambda path, method='GET', body=None: {})
 	try:
@@ -368,7 +368,7 @@ async def test_captcha_solver_false_turns_the_cloud_solver_off_at_start(monkeypa
 			browser = Browser(captcha_solver=solver)
 			env = await browser.start()
 			await browser.stop()
-			assert fake.calls == ([] if solver else [('BrowserUse.setCaptchaSolverEnabled', {'enabled': False})])
+			assert fake.calls == ([] if solver else [('BrowseDev.setCaptchaSolverEnabled', {'enabled': False})])
 			assert ('BU_CAPTCHA_SOLVER' in env) is not solver  # the worker's solve_captcha() keeps it off (H11)
 		assert fake.enabled is False
 	finally:

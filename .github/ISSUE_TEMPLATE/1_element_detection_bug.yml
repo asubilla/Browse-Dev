@@ -13,19 +13,19 @@ body:
       value: |
         ---
         > [!IMPORTANT]
-        > 🙏 Please **go check *right now before filling this out* that that you are *actually* on the [⬆️ LATEST VERSION](https://github.com/browser-use/browser-use/releases)**.
+        > 🙏 Please **go check *right now before filling this out* that that you are *actually* on the [⬆️ LATEST VERSION](https://github.com/asubilla/Browse-Dev/releases)**.
         > 🚀 We ship changes every hour and we might've already fixed your issue today!  
-        > <a href="https://github.com/browser-use/browser-use/releases"><img src="https://github.com/user-attachments/assets/4cd34ee6-bafb-4f24-87e2-27a31dc5b9a4" width="500px"/></a>
+        > <a href="https://github.com/asubilla/Browse-Dev/releases"><img src="https://github.com/user-attachments/assets/4cd34ee6-bafb-4f24-87e2-27a31dc5b9a4" width="500px"/></a>
         > If you are running an old version, the **first thing we will ask you to do is *upgrade to the latest version* and try again**:
-        > - 🆕 [`beta`](https://docs.browser-use.com/development/local-setup):   `uv pip install --upgrade git+https://github.com/browser-use/browser-use.git@main`
-        > - 📦 [`stable`](https://pypi.org/project/browser-use/#history): `uv pip install --upgrade browser-use`
+        > - 🆕 [`beta`](https://docs.browser-use.com/development/local-setup):   `uv pip install --upgrade git+https://github.com/asubilla/Browse-Dev.git@main`
+        > - 📦 [`stable`](https://pypi.org/project/browse-dev/#history): `uv pip install --upgrade browse-dev`
 
   - type: input
     id: version
     attributes:
-      label: Browser Use Version
+      label: Browse Dev Version
       description: |
-        What version of `browser-use` are you using? (Run `uv pip show browser-use` or `git log -n 1`)  
+        What version of `browse-dev` are you using? (Run `uv pip show browse-dev` or `git log -n 1`)  
         **DO NOT JUST WRITE `latest release` or `main` or a very old version or we will close your issue!**
       placeholder: "e.g. 0.4.45 or 62760baaefd"
     validations:
@@ -92,7 +92,7 @@ body:
       placeholder: |
         from dotenv import load_dotenv
         load_dotenv()  # tip: always load_dotenv() before other imports
-        from browser_use import Agent, Browser, ChatOpenAI
+        from browse_dev import Agent, Browser, ChatOpenAI
 
         agent = Agent(
             task='...',
@@ -105,9 +105,9 @@ body:
     id: logs
     attributes:
       label: Full DEBUG Log Output
-      description: Please copy and paste the *full* log output *from the start of the run*. Make sure to set `BROWSER_USE_LOGGING_LEVEL=DEBUG` in your `.env` or shell environment.
+      description: Please copy and paste the *full* log output *from the start of the run*. Make sure to set `BROWSE_DEV_LOGGING_LEVEL=DEBUG` in your `.env` or shell environment.
       render: shell
       placeholder: |
-        $ python /app/browser-use/examples/browser/real_browser.py
+        $ python /app/browse-dev/examples/browser/real_browser.py
         DEBUG    [browser] 🌎  Initializing new browser
         DEBUG    [agent] Version: 0.1.46-9-g62760ba, Source: git

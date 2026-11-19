@@ -11,10 +11,10 @@ import pytest
 from pydantic_ai.exceptions import UserError
 from pydantic_ai.models.openai import OpenAIChatModel, OpenAICompaction, OpenAIResponsesModel
 
-from browser_use import Agent, Browser, ChatAnthropic, ChatBrowserUse, ChatGoogle, ChatOpenAI
-from browser_use.agent.loop import Session, build_agent, run
-from browser_use.llm import GATEWAY_URL, model_ref, resolve_model
-from browser_use.repl import Repl
+from browse_dev import Agent, Browser, ChatAnthropic, ChatBrowseDev, ChatGoogle, ChatOpenAI
+from browse_dev.agent.loop import Session, build_agent, run
+from browse_dev.llm import GATEWAY_URL, model_ref, resolve_model
+from browse_dev.repl import Repl
 
 
 def compaction(agent) -> bool:
@@ -119,7 +119,7 @@ def reasoning(n: int) -> dict:
 
 def sse(response: dict) -> list[bytes]:
 	"""The response as OpenAI and the gateway stream it, one frame per event: created, each output item (added,
-	deltas, done), then response.completed (or response.failed) carrying the whole response, usage and browser_use."""
+	deltas, done), then response.completed (or response.failed) carrying the whole response, usage and browse_dev."""
 	events: list[dict] = []
 
 	def emit(kind: str, **data: Any) -> None:
@@ -162,7 +162,7 @@ def responses_server():
 	"""The gateway's POST /responses: 400 on what it rejects, else the queued `replies` (output item lists, a dict of
 	response fields such as a failure, or an (HTTP status, body) error), then a finish call; streamed when the request asks for it,
 	slowly with pace=(s after response.created, s after each later event). The response
-	carries browser_use{resolved_model, service_tier, charge_usd} as the gateway's does. A non-streamed request gets
+	carries browse_dev{resolved_model, service_tier, charge_usd} as the gateway's does. A non-streamed request gets
 	what the gateway answers one past its 300 s window: HTTP 200, status failed, request_timeout. A compaction item sent
 	back must be one a response carried (encrypted_content included), its id without 'unreadable', else OpenAI's 400; a
 	reasoning item too."""
@@ -200,7 +200,7 @@ def responses_server():
 				status, reply = 200, {
 					'id': f'resp_{n}', 'object': 'response', 'created_at': 0, 'model': body['model'], 'status': 'completed',
 					'output': [], 'usage': usage, 'parallel_tool_calls': True, 'tool_choice': 'auto', 'tools': [],
-					'browser_use': {'resolved_model': 'gpt-6-luna', 'service_tier': 'priority', 'charge_usd': '0.00020000'},
+					'browse_dev': {'resolved_model': 'gpt-6-luna', 'service_tier': 'priority', 'charge_usd': '0.00020000'},
 					**fields,
 				}  # fmt: skip
 				issued.update((i['id'], i['encrypted_content']) for i in reply['output'] if i['type'] == 'compaction')
@@ -251,7 +251,7 @@ async def test_gateway_models_run_stateless_responses_with_compaction(responses_
 			}
 		],
 	]  # the text reply is the answer (str result): no delivery repair request
-	model, settings = resolve_model(ChatBrowserUse(api_key='fake-test-key', base_url=url))
+	model, settings = resolve_model(ChatBrowseDev(api_key='fake-test-key', base_url=url))
 	assert isinstance(model, OpenAIResponsesModel)
 	# what Agent() passes for the gateway; threshold = the stub's 10 input tokens: compaction is requested from the 2nd call
 	agent = build_agent(model, model_settings=settings, reasoning_effort=None, compact_at_tokens=10)
@@ -283,9 +283,9 @@ async def test_responses_requests_stream_so_the_gateway_never_cuts_a_long_turn(r
 	url, requests, replies = responses_server
 	monkeypatch.setenv('OPENAI_BASE_URL', url)
 	monkeypatch.setenv('OPENAI_API_KEY', 'fake-test-key')
-	gateway, _ = resolve_model(ChatBrowserUse('bu-smart', api_key='fake-test-key', base_url=url))
+	gateway, _ = resolve_model(ChatBrowseDev('bu-smart', api_key='fake-test-key', base_url=url))
 	direct = OpenAIResponsesModel('gpt-6-luna', provider=OpenAIProvider(base_url=url, api_key='fake-test-key'))
-	for model, ref in ((gateway, 'browser-use:bu-smart'), (direct, 'openai:gpt-6-luna'), ('openai-responses:gpt-6-luna', 'x')):
+	for model, ref in ((gateway, 'browse-dev:bu-smart'), (direct, 'openai:gpt-6-luna'), ('openai-responses:gpt-6-luna', 'x')):
 		requests.clear()
 		replies.append([reasoning(1), call('python', {'code': 'print(6 * 7)'}, 1)])
 		result = await run(build_agent(model, reasoning_effort=None), 'TASK-TEXT', Session(repl=Repl(tmp_path)), ref)
@@ -304,7 +304,7 @@ async def test_a_responses_failure_inside_http_200_is_retried_once(responses_ser
 	client has max_retries. It now gets the one transient retry per run like a 5xx."""
 	url, requests, replies = responses_server
 	failed = {'status': 'failed', 'error': {'code': code, 'message': 'The request failed. Retry the request.'}}
-	model, _ = resolve_model(ChatBrowserUse('bu-smart', api_key='fake-test-key', base_url=url))
+	model, _ = resolve_model(ChatBrowseDev('bu-smart', api_key='fake-test-key', base_url=url))
 	replies.append(failed)
 	result = await run(build_agent(model, reasoning_effort=None), 'TASK-TEXT', Session(repl=Repl(tmp_path)), 'x')
 	assert (result.status, result.output, len(requests)) == ('completed', 'ok', 2), result.error
@@ -317,14 +317,14 @@ async def test_a_responses_failure_inside_http_200_is_retried_once(responses_ser
 async def test_streamed_requests_record_time_to_first_event_and_each_failed_attempt(responses_server, tmp_path):
 	"""Telemetry v3: a streamed request's time to its first event, the failed attempt before it (class and provider code,
 	never the message) and the retry's cause, from the real Responses path."""
-	from browser_use.telemetry.recorder import RunRecorder
-	from browser_use.telemetry.stats import RunStats
+	from browse_dev.telemetry.recorder import RunRecorder
+	from browse_dev.telemetry.stats import RunStats
 
 	url, requests, replies = responses_server
-	model, _ = resolve_model(ChatBrowserUse('bu-fast', api_key='fake-test-key', base_url=url))
+	model, _ = resolve_model(ChatBrowseDev('bu-fast', api_key='fake-test-key', base_url=url))
 	replies.append({'status': 'failed', 'error': {'code': 'server_error', 'message': 'Zq-provider-message'}})
 	session = Session(repl=Repl(tmp_path), rec=RunRecorder(model='bu-fast', gateway=True))
-	result = await run(build_agent(model, reasoning_effort=None), 'TASK-TEXT', session, 'browser-use:bu-fast')
+	result = await run(build_agent(model, reasoning_effort=None), 'TASK-TEXT', session, 'browse-dev:bu-fast')
 	assert result.status == 'completed', result.error
 	rec = session.rec
 	(step,) = rec.steps
@@ -347,9 +347,9 @@ async def test_a_gateway_stream_error_before_any_output_is_retried_once(response
 		'status': 'error',
 		'error': {'type': 'upstream_error', 'code': code, 'message': 'The model request timed out. Retry the request.'},
 	}
-	model, _ = resolve_model(ChatBrowserUse('bu-fast', api_key='fake-test-key', base_url=url))
+	model, _ = resolve_model(ChatBrowseDev('bu-fast', api_key='fake-test-key', base_url=url))
 	replies.append(frame)
-	ref = 'browser-use:bu-fast'
+	ref = 'browse-dev:bu-fast'
 	result = await run(build_agent(model, reasoning_effort=None), 'TASK-TEXT', Session(repl=Repl(tmp_path)), ref)
 	assert (result.status, result.output, len(requests)) == ('completed', 'ok', 2), result.error
 	assert result.cost_usd == pytest.approx(0.0002) and result.usage['requests'] == 1
@@ -373,9 +373,9 @@ async def test_a_responses_stream_that_ends_early_is_retried_once(responses_serv
 	the one transient retry per run."""
 	url, requests, replies = responses_server
 	cut = {'status': end, 'output': [text('The answer is 4', 1)]}
-	model, _ = resolve_model(ChatBrowserUse('bu-smart', api_key='fake-test-key', base_url=url))
+	model, _ = resolve_model(ChatBrowseDev('bu-smart', api_key='fake-test-key', base_url=url))
 	replies += [cut, [text('The answer is 42', 2)]]
-	ref = 'browser-use:bu-smart'
+	ref = 'browse-dev:bu-smart'
 	result = await run(build_agent(model, reasoning_effort=None), 'TASK-TEXT', Session(repl=Repl(tmp_path)), ref)
 	assert (result.status, result.output, len(requests)) == ('completed', 'The answer is 42', 2), result.error
 	assert result.cost_usd == pytest.approx(0.0002)
@@ -390,12 +390,12 @@ async def test_a_streamed_turn_past_the_model_timeout_runs_while_events_flow(res
 	streaming at 300 s was cut and asked again; the gateway billed every cut attempt in full and cost_usd counted none
 	(staging: 5 cuts, $1.84 billed, cost_usd $0.0074). A streamed request now has the 300 s for its first event and runs
 	on while events flow. One that sends nothing is still cut at 300 s and asked again."""
-	from browser_use.agent import loop
+	from browse_dev.agent import loop
 
 	monkeypatch.setattr(loop, 'MODEL_TIMEOUT_S', 1.0)  # stands in for 300 s
 	url, requests, replies = responses_server
-	model, _ = resolve_model(ChatBrowserUse('bu-smart', api_key='fake-test-key', base_url=url))
-	ref = 'browser-use:bu-smart'
+	model, _ = resolve_model(ChatBrowseDev('bu-smart', api_key='fake-test-key', base_url=url))
+	ref = 'browse-dev:bu-smart'
 	replies.append({'output': [text('The answer is 42', 1)], 'pace': (0, 0.5)})  # first output at 0.5 s, done at 2 s
 	result = await run(build_agent(model, reasoning_effort=None), 'TASK-TEXT', Session(repl=Repl(tmp_path)), ref)
 	assert (result.status, result.output, len(requests)) == ('completed', 'The answer is 42', 1), result.error
@@ -415,7 +415,7 @@ async def test_a_responses_request_over_the_context_window_compacts_once_and_is_
 	over = (400, {'error': {'message': 'Your input exceeds the context window of this model.', 'type': 'invalid_request_error',
 				  'code': 'context_length_exceeded', 'param': 'input'}})  # fmt: skip
 	steps = [[reasoning(i), call('python', {'code': f"print('row{100 + i} ' * 500)"}, i)] for i in (1, 2, 3)]
-	model, _ = resolve_model(ChatBrowserUse('bu-fast', api_key='fake-test-key', base_url=url))
+	model, _ = resolve_model(ChatBrowseDev('bu-fast', api_key='fake-test-key', base_url=url))
 	replies += [*steps, over, [text('## Goal\nSUMMARY-TEXT', 5)]]
 	result = await run(build_agent(model, reasoning_effort=None), 'TASK-TEXT', Session(repl=Repl(tmp_path)), 'x')
 	assert (result.status, result.output, len(requests)) == ('completed', 'ok', 6), result.error
@@ -471,7 +471,7 @@ async def test_responses_bodies_skip_the_sdk_transform(responses_server, tmp_pat
 	from openai.types.responses import response_create_params as params
 	from typing_extensions import TypedDict
 
-	from browser_use.llm import responses_params_rewrite
+	from browse_dev.llm import responses_params_rewrite
 
 	class Aliased(TypedDict, total=False):
 		card_id: Annotated[str, PropertyInfo(alias='cardID')]
@@ -488,7 +488,7 @@ async def test_responses_bodies_skip_the_sdk_transform(responses_server, tmp_pat
 	monkeypatch.setattr(_transform, '_async_transform_recursive', counted)
 	url, requests, replies = responses_server
 	replies.append([reasoning(1), call('python', {'code': 'print(6 * 7)'}, 1)])
-	model, settings = resolve_model(ChatBrowserUse(api_key='fake-test-key', base_url=url))
+	model, settings = resolve_model(ChatBrowseDev(api_key='fake-test-key', base_url=url))
 	agent = build_agent(model, model_settings=settings, reasoning_effort=None)
 	result = await run(agent, 'TASK-TEXT', Session(repl=Repl(tmp_path)), model.model_name)
 	assert (result.status, result.output, len(requests)) == ('completed', 'ok', 2)
@@ -510,7 +510,7 @@ async def test_text_answer_reaches_the_repair_turn_when_a_compaction_item_ends_t
 		]
 	)  # fmt: skip
 	replies.append([reasoning(2), call('finish', {'success': True, 'result': {'books': 120}}, 2)])
-	model, settings = resolve_model(ChatBrowserUse(api_key='fake-test-key', base_url=url))
+	model, settings = resolve_model(ChatBrowseDev(api_key='fake-test-key', base_url=url))
 	agent = build_agent(model, model_settings=settings, reasoning_effort=None, output_type=dict[str, int])
 	result = await run(agent, 'TASK-TEXT', Session(repl=Repl(tmp_path)), model.model_name)
 	assert (result.status, result.output) == ('completed', {'books': 120})
@@ -534,7 +534,7 @@ async def test_a_streamed_compaction_item_goes_back_as_response_completed_carrie
 		[reasoning(1), call('python', {'code': 'print(6 * 7)'}, 1)],
 		[sealed(2, streamed=stale), reasoning(2), call('python', {'code': 'print(1)'}, 2)],
 	]
-	model, settings = resolve_model(ChatBrowserUse(api_key='fake-test-key', base_url=url))
+	model, settings = resolve_model(ChatBrowseDev(api_key='fake-test-key', base_url=url))
 	agent = build_agent(model, model_settings=settings, reasoning_effort=None, compact_at_tokens=10)
 	result = await run(agent, 'TASK-TEXT', Session(repl=Repl(tmp_path)), model.model_name)
 	assert (result.status, result.output, len(requests)) == ('completed', 'ok', 3), result.error
@@ -553,7 +553,7 @@ async def test_a_compaction_item_the_provider_cannot_read_is_dropped_and_the_his
 		[sealed('unreadable_2'), reasoning(2), call('python', {'code': 'print(1)'}, 2)],
 	]
 	replies += [*steps, [sealed(4), reasoning(4), call('python', {'code': 'print(2)'}, 4)]]
-	model, settings = resolve_model(ChatBrowserUse(api_key='fake-test-key', base_url=url))
+	model, settings = resolve_model(ChatBrowseDev(api_key='fake-test-key', base_url=url))
 	agent = build_agent(model, model_settings=settings, reasoning_effort=None, compact_at_tokens=10)
 	result = await run(agent, 'TASK-TEXT', Session(repl=Repl(tmp_path)), model.model_name)
 	assert (result.status, result.output, len(requests)) == ('completed', 'ok', 5), result.error
@@ -611,7 +611,7 @@ async def test_the_gateways_400_on_a_compacted_request_resends_it_once_without_t
 		GATEWAY_REJECTED,
 		[sealed(4), reasoning(4), call('python', {'code': 'print(2)'}, 4)],
 	]
-	model, settings = resolve_model(ChatBrowserUse(api_key='fake-test-key', base_url=url))
+	model, settings = resolve_model(ChatBrowseDev(api_key='fake-test-key', base_url=url))
 	agent = build_agent(model, model_settings=settings, reasoning_effort=None, compact_at_tokens=10)
 	result = await run(agent, 'TASK-TEXT', Session(repl=Repl(tmp_path)), model.model_name)
 	assert (result.status, result.output, len(requests)) == ('completed', 'ok', 5), result.error
@@ -669,9 +669,9 @@ def error(code: str, message: str) -> dict:
 
 
 def test_an_openai_prefixed_gateway_model_is_sent_without_the_prefix():
-	"""Live (0.13 README: ChatBrowserUse(model='openai/gpt-5.5')): the preflight accepted the prefixed name, then the
-	gateway answered 400 "not on the Browser Use gateway" to the first request, after the browser had started."""
-	llm = ChatBrowserUse('openai/gpt-5.5', api_key='fake-test-key')
+	"""Live (0.13 README: ChatBrowseDev(model='openai/gpt-5.5')): the preflight accepted the prefixed name, then the
+	gateway answered 400 "not on the Browse Dev gateway" to the first request, after the browser had started."""
+	llm = ChatBrowseDev('openai/gpt-5.5', api_key='fake-test-key')
 	assert llm.model == 'gpt-5.5' and llm.pydantic_model().model_name == 'gpt-5.5'
 
 
@@ -679,42 +679,42 @@ def test_preflight_checks_the_gateway_key_and_model_before_anything_starts(model
 	"""agent-llm F4/F6: a gateway that is not deployed, a rejected key or a model the gateway does not serve failed only
 	after a cloud browser had been created and billed."""
 	url, reply, seen = models_server
-	assert ChatBrowserUse(api_key='fake-test-key', base_url=url).preflight() is None
-	assert ChatBrowserUse('openai/gpt-6-luna', api_key='fake-test-key', base_url=url).preflight() is None
+	assert ChatBrowseDev(api_key='fake-test-key', base_url=url).preflight() is None
+	assert ChatBrowseDev('openai/gpt-6-luna', api_key='fake-test-key', base_url=url).preflight() is None
 	assert seen[0] == ('/v1/models', 'Bearer fake-test-key')
-	missing = ChatBrowserUse('bu-nonexistent-xyz', api_key='fake-test-key', base_url=url).preflight()
+	missing = ChatBrowseDev('bu-nonexistent-xyz', api_key='fake-test-key', base_url=url).preflight()
 	assert (
 		missing
-		== 'bu-nonexistent-xyz is not on the Browser Use gateway. Listed: bu-4.0, bu-auto, bu-fast, bu-ultrafast, gpt-6-luna.'
+		== 'bu-nonexistent-xyz is not on the Browse Dev gateway. Listed: bu-4.0, bu-auto, bu-fast, bu-ultrafast, gpt-6-luna.'
 	)
-	# the 0.13 README's ChatBrowserUse('anthropic/claude-sonnet-4-6'): the 0.x gateway served it, the error named no class
-	vendor = ChatBrowserUse('anthropic/claude-sonnet-4-6', api_key='fake-test-key', base_url=url).preflight()
+	# the 0.13 README's ChatBrowseDev('anthropic/claude-sonnet-4-6'): the 0.x gateway served it, the error named no class
+	vendor = ChatBrowseDev('anthropic/claude-sonnet-4-6', api_key='fake-test-key', base_url=url).preflight()
 	assert vendor and "in 1.0 use ChatAnthropic('claude-sonnet-4-6') with your own anthropic key" in vendor, vendor
 	for legacy in ('bu-2-0', 'bu-latest', 'bu-2-0-mini-preview'):  # M4: refused locally, the gateway 404s them
-		with pytest.raises(ValueError, match=r"needs browser-use<1\.0 \(pip install 'browser-use<1\.0'\), or use bu-fast"):
-			ChatBrowserUse(legacy, api_key='fake-test-key', base_url=url)
-		with pytest.raises(ValueError, match='needs browser-use<1.0'):
+		with pytest.raises(ValueError, match=r"needs browse-dev<1\.0 \(pip install 'browse-dev<1\.0'\), or use bu-fast"):
+			ChatBrowseDev(legacy, api_key='fake-test-key', base_url=url)
+		with pytest.raises(ValueError, match='needs browse-dev<1.0'):
 			Agent('t', legacy)
 	assert not any(path for path, _ in seen[1:] if 'legacy' in path)
 	reply[:] = [404, '404 page not found', 'text/plain']  # the route itself is missing (Go's default 404)
-	dead = ChatBrowserUse(api_key='fake-test-key', base_url=url).preflight()
+	dead = ChatBrowseDev(api_key='fake-test-key', base_url=url).preflight()
 	assert dead and f'gateway is not deployed at {url} (404)' in dead and 'region' not in dead  # H1: no region claim
 	assert 'model id' not in dead
 	reply[:] = [401, error('invalid_api_key', 'Invalid API key.'), 'application/json']
-	rejected = ChatBrowserUse(api_key='bad', base_url=url).preflight() or ''
-	assert 'API key rejected (401): check api_key=..., or BROWSER_USE_API_KEY' in rejected  # C38: may be either key
+	rejected = ChatBrowseDev(api_key='bad', base_url=url).preflight() or ''
+	assert 'API key rejected (401): check api_key=..., or BROWSE_DEV_API_KEY' in rejected  # C38: may be either key
 	reply[:] = [403, error('insufficient_scope', 'This API key requires v4:runs:create permission.'), 'application/json']
-	assert 'requires v4:runs:create permission. Run `browser-use login`' in (
-		ChatBrowserUse(api_key='x', base_url=url).preflight() or ''
+	assert 'requires v4:runs:create permission. Run `browse-dev login`' in (
+		ChatBrowseDev(api_key='x', base_url=url).preflight() or ''
 	)
 	with socket.socket() as s:  # a port nothing listens on
 		s.bind(('127.0.0.1', 0))
 		closed = f'http://127.0.0.1:{s.getsockname()[1]}/v1'
-	assert 'is not reachable' in (ChatBrowserUse(api_key='x', base_url=closed).preflight() or '')
+	assert 'is not reachable' in (ChatBrowseDev(api_key='x', base_url=closed).preflight() or '')
 
 
 async def test_agent_preflight_failure_never_starts_a_browser(models_server, monkeypatch, tmp_path):
-	from browser_use import Browser
+	from browse_dev import Browser
 
 	url, reply, _ = models_server
 	reply[:] = [404, '404 page not found', 'text/plain']
@@ -725,12 +725,12 @@ async def test_agent_preflight_failure_never_starts_a_browser(models_server, mon
 		return {}
 
 	monkeypatch.setattr(Browser, 'start', start)
-	agent = Agent('t', ChatBrowserUse(api_key='fake-test-key', base_url=url), browser=Browser(local=True), workspace=tmp_path)
+	agent = Agent('t', ChatBrowseDev(api_key='fake-test-key', base_url=url), browser=Browser(local=True), workspace=tmp_path)
 	result = await agent.run()
 	assert (result.status, result.steps, result.is_successful()) == ('error', 0, None)
 	assert 'gateway is not deployed at' in (result.error or '') and started == []
 	# C38: a provider key is checked on a local browser too, not only before a billed cloud browser
-	monkeypatch.setattr('browser_use.agent.service.provider_preflight', lambda model: 'openai rejected the API key (401)')
+	monkeypatch.setattr('browse_dev.agent.service.provider_preflight', lambda model: 'openai rejected the API key (401)')
 	result = await Agent('t', ChatOpenAI('gpt-6-luna', api_key='bad'), browser=Browser(local=True), workspace=tmp_path).run()
 	assert result.error == 'openai rejected the API key (401)' and started == []
 
@@ -748,31 +748,31 @@ def test_gateway_400s_are_one_line_with_the_gateway_message():
 	"""agent-llm F5: 400s came back as 'ModelRequestRejectedError: status_code: 400, model_name: ..., body: {...}'."""
 	from pydantic_ai.exceptions import ModelHTTPError
 
-	legacy = {'code': 'legacy_model', 'message': 'This model requires browser-use<1.0. Use bu-auto with the new library.'}
-	llm = ChatBrowserUse(api_key='x')
+	legacy = {'code': 'legacy_model', 'message': 'This model requires browse-dev<1.0. Use bu-auto with the new library.'}
+	llm = ChatBrowseDev(api_key='x')
 	llm.model = 'bu-2-0'  # refused at construction (M4); the gateway's own legacy_model answer still reads the same
 	line = llm.explain_error(ModelHTTPError(400, 'bu-2-0', legacy))
-	assert line == "bu-2-0 needs browser-use<1.0 (pip install 'browser-use<1.0'), or use bu-fast with browser-use 1.0."
+	assert line == "bu-2-0 needs browse-dev<1.0 (pip install 'browse-dev<1.0'), or use bu-fast with browse-dev 1.0."
 	for code in ('invalid_model', 'model_not_on_gateway'):
 		body = {'code': code, 'message': 'Use bu-auto, bu-ultrafast, bu-smart, or a listed OpenAI model.'}
-		line = ChatBrowserUse('kimi-k3', api_key='x').explain_error(ModelHTTPError(400, 'kimi-k3', body))
-		assert line == f'kimi-k3 is not on the Browser Use gateway (400): {body["message"]}'
+		line = ChatBrowseDev('kimi-k3', api_key='x').explain_error(ModelHTTPError(400, 'kimi-k3', body))
+		assert line == f'kimi-k3 is not on the Browse Dev gateway (400): {body["message"]}'
 	other = {'code': 'invalid_request', 'message': 'n must be 1'}
-	assert ChatBrowserUse(api_key='x').explain_error(ModelHTTPError(400, 'bu-ultrafast', other)) is None
+	assert ChatBrowseDev(api_key='x').explain_error(ModelHTTPError(400, 'bu-ultrafast', other)) is None
 
 
 def test_every_gateway_model_and_the_gateway_url_use_responses(monkeypatch):
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'fake-test-key')
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'fake-test-key')
 	for name in ('bu-ultrafast', 'bu-auto', 'bu-smart', 'gpt-6.1-sol'):
-		model, _ = resolve_model(ChatBrowserUse(name))
+		model, _ = resolve_model(ChatBrowseDev(name))
 		assert isinstance(model, OpenAIResponsesModel) and model.model_name == name  # never renamed
 		assert model.profile['openai_responses_requires_store_false'] and model.profile['openai_supports_reasoning']
 	model, _ = resolve_model(ChatOpenAI('bu-auto', base_url=GATEWAY_URL))
 	assert isinstance(model, OpenAIResponsesModel) and model.profile['openai_responses_requires_store_false']
-	agent = Agent('t', ChatBrowserUse(), browser=None)
+	agent = Agent('t', ChatBrowseDev(), browser=None)
 	agent._build()
 	assert 'openai_reasoning_effort' not in agent._agent.model_settings  # the alias decides
-	agent = Agent('t', ChatBrowserUse(), browser=None, reasoning='high')
+	agent = Agent('t', ChatBrowseDev(), browser=None, reasoning='high')
 	agent._build()
 	assert agent._agent.model_settings['openai_reasoning_effort'] == 'high'
 
@@ -791,7 +791,7 @@ async def test_gateway_tool_revealed_mid_run_sends_no_additional_tools_item(resp
 	async def later(ctx, tool_def):
 		return tool_def if ctx.run_step > 1 else None
 
-	model, settings = resolve_model(ChatBrowserUse(api_key='fake-test-key', base_url=url))
+	model, settings = resolve_model(ChatBrowseDev(api_key='fake-test-key', base_url=url))
 	agent = build_agent(model, model_settings=settings, reasoning_effort=None, tools=[Tool(lookup, prepare=later)])
 	result = await run(agent, 'TASK-TEXT', Session(repl=Repl(tmp_path)), model.model_name)
 	assert (result.status, result.error) == ('completed', None)
@@ -801,10 +801,10 @@ async def test_gateway_tool_revealed_mid_run_sends_no_additional_tools_item(resp
 
 
 def test_gateway_detection_https_only_and_openai_key_precedence(monkeypatch):
-	"""Roast: http:// (or another port) on the gateway host got the Browser Use key attached in clear text; with
-	OPENAI_BASE_URL=gateway, a Browser Use key in OPENAI_API_KEY (the 0.x setup) was ignored."""
+	"""Roast: http:// (or another port) on the gateway host got the Browse Dev key attached in clear text; with
+	OPENAI_BASE_URL=gateway, a Browse Dev key in OPENAI_API_KEY (the 0.x setup) was ignored."""
 	monkeypatch.delenv('OPENAI_BASE_URL', raising=False)
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'bu-env-key')
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'bu-env-key')
 	for url in ('http://api.browser-use.com/api/v4/llm/v1', 'https://api.browser-use.com:8443/api/v4/llm/v1'):
 		assert not ChatOpenAI('bu-auto', api_key='x', base_url=url).is_gateway
 	assert ChatOpenAI('bu-auto', base_url=GATEWAY_URL + '/').is_gateway
@@ -813,7 +813,7 @@ def test_gateway_detection_https_only_and_openai_key_precedence(monkeypatch):
 	model, _ = resolve_model(ChatOpenAI('bu-auto'))
 	assert isinstance(model, OpenAIResponsesModel) and model.client.api_key == 'bu_openai_env'
 	agent = Agent('t', ChatOpenAI('bu-auto'), browser=None)
-	agent._build()  # the preflight checks the key the model sends, not the Browser Use key
+	agent._build()  # the preflight checks the key the model sends, not the Browse Dev key
 	assert agent._gateway and agent._gateway.api_key == 'bu_openai_env'
 	monkeypatch.setenv('OPENAI_API_KEY', 'sk-not-a-gateway-key')  # an OpenAI key never works there
 	model, _ = resolve_model(ChatOpenAI('bu-auto'))
@@ -823,39 +823,39 @@ def test_gateway_detection_https_only_and_openai_key_precedence(monkeypatch):
 
 def test_agent_treats_every_gateway_model_form_alike(monkeypatch):
 	"""Roast: ChatOpenAI(base_url=gateway) lost the actionable 401/402 lines, and an already-resolved gateway model
-	(ChatBrowserUse(...).pydantic_model()) got 'medium' instead of the alias's own effort."""
+	(ChatBrowseDev(...).pydantic_model()) got 'medium' instead of the alias's own effort."""
 	from pydantic_ai.exceptions import ModelHTTPError
 
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'fake-test-key')
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'fake-test-key')
 	for llm in (
-		ChatBrowserUse('bu-smart'),
+		ChatBrowseDev('bu-smart'),
 		ChatOpenAI('bu-smart', base_url=GATEWAY_URL),
-		ChatBrowserUse('bu-smart').pydantic_model(),
+		ChatBrowseDev('bu-smart').pydantic_model(),
 	):
 		agent = Agent('t', llm, browser=None)
 		agent._build()
 		assert 'openai_reasoning_effort' not in agent._agent.model_settings
 		assert agent._gateway and 'tab=billing' in agent._gateway.explain_error(ModelHTTPError(402, 'bu-smart'))
-		assert agent._model_ref == 'browser-use:bu-smart'
+		assert agent._model_ref == 'browse-dev:bu-smart'
 	agent = Agent('t', ChatOpenAI('gpt-6-luna', api_key='sk-test'), browser=None)
 	agent._build()
 	assert agent._agent.model_settings['openai_reasoning_effort'] == 'medium' and agent._gateway is None
 
 
 def test_a_listed_openai_model_on_the_gateway_gets_medium_like_on_openai(monkeypatch):
-	"""Live: ChatBrowserUse('gpt-6-luna') sent no effort and ran at 'high', ChatBrowserUse('gpt-6.1-sol') at 'xhigh' (the
+	"""Live: ChatBrowseDev('gpt-6-luna') sent no effort and ran at 'high', ChatBrowseDev('gpt-6.1-sol') at 'xhigh' (the
 	upstream default), while ChatOpenAI('gpt-6-luna') runs at the documented 'medium'. Only a bu-* alias has an effort of
 	its own; Agent(reasoning=...) still wins."""
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'fake-test-key')
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'fake-test-key')
 	for llm in (
-		ChatBrowserUse('gpt-6-luna'),
+		ChatBrowseDev('gpt-6-luna'),
 		ChatOpenAI('gpt-6.1-sol', base_url=GATEWAY_URL),
-		ChatBrowserUse('gpt-6.1-sol').pydantic_model(),
+		ChatBrowseDev('gpt-6.1-sol').pydantic_model(),
 	):
 		agent = Agent('t', llm, browser=None)
 		agent._build()
 		assert agent._gateway and agent._agent.model_settings['openai_reasoning_effort'] == 'medium'
-	agent = Agent('t', ChatBrowserUse('gpt-6.1-sol'), browser=None, reasoning='low')
+	agent = Agent('t', ChatBrowseDev('gpt-6.1-sol'), browser=None, reasoning='low')
 	agent._build()
 	assert agent._agent.model_settings['openai_reasoning_effort'] == 'low'
 	for alias in ('bu-4.0', 'bu-4.0-mini', 'bu-4.0-pro', 'bu-fast', 'bu-ultrafast', 'bu-smart', 'bu-auto'):
@@ -870,17 +870,17 @@ def test_gateway_cost_is_the_charge_or_none_never_a_retail_estimate():
 	from pydantic_ai.messages import ModelResponse, TextPart
 	from pydantic_ai.usage import RequestUsage
 
-	from browser_use.agent.loop import usage_and_cost
+	from browse_dev.agent.loop import usage_and_cost
 
 	u = RequestUsage(input_tokens=1000, output_tokens=100)
 
 	def reply(charge):
-		details = None if charge is None else {'browser_use': {'charge_usd': charge}}
+		details = None if charge is None else {'browse_dev': {'charge_usd': charge}}
 		return ModelResponse(parts=[TextPart('x')], usage=u, provider_details=details)
 
-	assert usage_and_cost([reply('0.0002'), reply('0.0003')], 'browser-use:gpt-4.1')[1] == pytest.approx(0.0005)
-	assert usage_and_cost([reply('0.0002'), reply(None)], 'browser-use:gpt-4.1')[1] is None
-	assert usage_and_cost([reply('nan')], 'browser-use:gpt-4.1')[1] is None
+	assert usage_and_cost([reply('0.0002'), reply('0.0003')], 'browse-dev:gpt-4.1')[1] == pytest.approx(0.0005)
+	assert usage_and_cost([reply('0.0002'), reply(None)], 'browse-dev:gpt-4.1')[1] is None
+	assert usage_and_cost([reply('nan')], 'browse-dev:gpt-4.1')[1] is None
 	assert usage_and_cost([reply(None)], 'openai:gpt-4.1')[1]  # non-gateway: still priced
 
 
@@ -913,10 +913,10 @@ async def test_custom_base_url_runs_end_to_end(chat_server, tmp_path):
 
 
 def test_default_llm_is_bu_4_on_the_gateway(monkeypatch):
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'fake-test-key')
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'fake-test-key')
 	agent = Agent('t', browser=None)
-	assert isinstance(agent.llm, ChatBrowserUse) and agent.llm.model == 'bu-4.0'
-	assert ChatBrowserUse().model == 'bu-4.0'
+	assert isinstance(agent.llm, ChatBrowseDev) and agent.llm.model == 'bu-4.0'
+	assert ChatBrowseDev().model == 'bu-4.0'
 	model, _ = resolve_model(agent.llm)
 	assert isinstance(model, OpenAIResponsesModel) and model.model_name == 'bu-4.0'
 	assert str(model.client.base_url).rstrip('/') == GATEWAY_URL
@@ -927,19 +927,19 @@ def test_default_llm_is_bu_4_on_the_gateway(monkeypatch):
 async def test_gateway_errors_are_one_actionable_line():
 	from pydantic_ai.exceptions import ModelHTTPError
 
-	llm = ChatBrowserUse(api_key='fake-test-key')
+	llm = ChatBrowseDev(api_key='fake-test-key')
 	assert 'cloud.browser-use.com/settings?tab=billing' in llm.explain_error(ModelHTTPError(402, 'bu-ultrafast'))
-	assert 'browser-use login' in llm.explain_error(ModelHTTPError(401, 'bu-ultrafast'))
+	assert 'browse-dev login' in llm.explain_error(ModelHTTPError(401, 'bu-ultrafast'))
 	not_found = llm.explain_error(ModelHTTPError(404, 'bu-ultrafast'))
 	assert f'gateway is not deployed at {GATEWAY_URL} (404)' in not_found and 'model id' not in not_found
 	assert llm.explain_error(ModelHTTPError(500, 'bu-ultrafast')) is None
 	# 403 has several causes: the gateway's own message (body as the OpenAI SDK passes it) names the actual one
-	policy = {'message': 'This project policy does not permit the new Browser Use LLM gateway.', 'code': 'project_policy'}
+	policy = {'message': 'This project policy does not permit the new Browse Dev LLM gateway.', 'code': 'project_policy'}
 	error = ModelHTTPError(403, 'bu-ultrafast', policy, provider_error_code='project_policy')
 	assert llm.explain_error(error) == f'bu-4.0 is not available for this key (403): {policy["message"]}'
 	scope = {'message': 'This API key requires v4:runs:create permission.', 'code': 'insufficient_scope'}
 	error = ModelHTTPError(403, 'bu-ultrafast', scope, provider_error_code='insufficient_scope')
-	assert llm.explain_error(error) == f'{scope["message"]} Run `browser-use login` again for a new key.'
+	assert llm.explain_error(error) == f'{scope["message"]} Run `browse-dev login` again for a new key.'
 	assert 'ChatOpenAI' in llm.explain_error(ModelHTTPError(403, 'bu-ultrafast'))  # no body: a generic hint
 
 
@@ -979,7 +979,7 @@ def test_missing_extra_gives_install_hint(monkeypatch):
 		raise ImportError('No module named anthropic')
 
 	monkeypatch.setattr(pydantic_ai.models, 'infer_model', no_sdk)
-	with pytest.raises(ImportError, match=r'browser-use\[anthropic\]'):
+	with pytest.raises(ImportError, match=r'browse-dev\[anthropic\]'):
 		resolve_model('anthropic:claude-opus-5-5')
 
 
@@ -1004,7 +1004,7 @@ def test_openai_vs_compatible_by_effective_hostname(monkeypatch, base_url, env, 
 
 
 def test_missing_provider_sdk_never_suggests_a_nonexistent_extra(monkeypatch):
-	"""Roast C20: groq suggested browser-use[groq], which does not exist."""
+	"""Roast C20: groq suggested browse-dev[groq], which does not exist."""
 	import pydantic_ai.models
 
 	def no_sdk(ref):
@@ -1037,7 +1037,7 @@ def test_unsupported_llm_object_raises():
 
 
 def test_langchain_llm_raises_in_agent_init_with_qualified_name():
-	"""A LangChain ChatOpenAI shares browser_use.ChatOpenAI's class name: the error names its module, at Agent()."""
+	"""A LangChain ChatOpenAI shares browse_dev.ChatOpenAI's class name: the error names its module, at Agent()."""
 	LangChainChatOpenAI = type('ChatOpenAI', (), {'__module__': 'langchain_openai.chat_models.base'})
 	with pytest.raises(TypeError, match=r'llm=langchain_openai\.chat_models\.base\.ChatOpenAI is not supported'):
 		Agent('t', llm=LangChainChatOpenAI(), browser=Browser('chromium'))
@@ -1170,7 +1170,7 @@ def test_openai_reasoning_models_on_chat_completions_get_reasoning_off(monkeypat
 	from pydantic_ai.models.openai import OpenAIChatModel
 	from pydantic_ai.providers.openai import OpenAIProvider
 
-	from browser_use.agent.loop import build_agent
+	from browse_dev.agent.loop import build_agent
 
 	monkeypatch.setenv('OPENAI_API_KEY', 'sk-test')
 	assert build_agent('openai-chat:gpt-6-luna').model_settings == {'openai_reasoning_effort': 'none'}
@@ -1213,7 +1213,7 @@ def test_anthropic_models_use_prompt_caching():
 	from pydantic_ai.providers.anthropic import AnthropicProvider
 	from pydantic_ai.settings import merge_model_settings
 
-	from browser_use.agent.loop import build_agent
+	from browse_dev.agent.loop import build_agent
 
 	def sent(model):  # what Pydantic AI prepares for the request: the model's own settings under the agent's
 		agent_settings = build_agent(model).model_settings
@@ -1253,7 +1253,7 @@ def test_secretstr_api_keys_are_sent_as_the_plain_key():
 	assert resolve_model(ChatAnthropic('claude-opus-5-5', api_key=SecretStr('k')))[0].client.api_key == 'k'
 	assert ChatGoogle('gemini-3-flash', api_key=SecretStr('k')).api_key == 'k'
 	assert resolve_model(ChatGoogle('gemini-3-flash', api_key=SecretStr('k')))[0].model_name == 'gemini-3-flash'
-	assert ChatBrowserUse(api_key=SecretStr(' bu_k\n')).api_key == 'bu_k'
+	assert ChatBrowseDev(api_key=SecretStr(' bu_k\n')).api_key == 'bu_k'
 
 
 def test_a_provider_key_with_whitespace_never_reaches_an_error_message(monkeypatch):
@@ -1365,7 +1365,7 @@ def test_openai_compatible_backends_are_priced_as_the_provider_at_their_url():
 	from pydantic_ai.messages import ModelResponse
 	from pydantic_ai.usage import RequestUsage
 
-	from browser_use.agent.loop import usage_and_cost
+	from browse_dev.agent.loop import usage_and_cost
 
 	for name, url in (
 		('deepseek-chat', 'https://api.deepseek.com/v1'),

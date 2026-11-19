@@ -129,10 +129,10 @@ jobs:
           set -euo pipefail
           uv venv --python 3.11 /tmp/wheel-smoke
           uv pip install --python /tmp/wheel-smoke/bin/python dist/*.whl
-          /tmp/wheel-smoke/bin/browser-use --version
+          /tmp/wheel-smoke/bin/browse-dev --version
           # Outside the checkout: `python -c` puts the cwd first on sys.path, which would import the source tree, not the wheel
           cd "$RUNNER_TEMP"
-          /tmp/wheel-smoke/bin/python -c "import os, browser_use; from browser_use import Agent, Browser, ChatBrowserUse, Tools; assert not browser_use.__file__.startswith(os.environ['GITHUB_WORKSPACE']), browser_use.__file__"
+          /tmp/wheel-smoke/bin/python -c "import os, browse_dev; from browse_dev import Agent, Browser, ChatBrowseDev, Tools; assert not browse_dev.__file__.startswith(os.environ['GITHUB_WORKSPACE']), browse_dev.__file__"
 
       # Trusted publishing (OIDC, environment release) with PEP 740 attestations for dist/*
       - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3

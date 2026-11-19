@@ -1,12 +1,12 @@
 ---
 name: x402
-description: Set up Browser Use Cloud payments with x402 — pay per request from a crypto wallet (USDC on Base mainnet), no signup or API key. Two setups it works out up front — "just use it" (set up a wallet so you or Claude Code can run cloud browser tasks paid from the wallet — Claude writes and runs throwaway scripts, nothing touches your codebase) or "build it in" (install the SDK and write the key + code into your project). Walks through wallet setup, funding, .env, and a ~$1 test run. Use when the user asks about x402, pay-per-use, USDC payments, or wants Browser Use Cloud without an API key. For an API key instead, run `browser-use login` or use the `cloud` skill.
+description: Set up Browse Dev Cloud payments with x402 — pay per request from a crypto wallet (USDC on Base mainnet), no signup or API key. Two setups it works out up front — "just use it" (set up a wallet so you or Claude Code can run cloud browser tasks paid from the wallet — Claude writes and runs throwaway scripts, nothing touches your codebase) or "build it in" (install the SDK and write the key + code into your project). Walks through wallet setup, funding, .env, and a ~$1 test run. Use when the user asks about x402, pay-per-use, USDC payments, or wants Browse Dev Cloud without an API key. For an API key instead, run `browse-dev login` or use the `cloud` skill.
 allowed-tools: Bash, Read, Write, Edit
 ---
 
-# Browser Use Cloud — pay with x402 (crypto wallet)
+# Browse Dev Cloud — pay with x402 (crypto wallet)
 
-This is a scripted flow. Follow the steps in order. x402 only works through the **SDK** (`browser-use-sdk` for Python, the `browser-use` npm package for TS) — there is no `browser-use` CLI command for it, so every step runs a short SDK script.
+This is a scripted flow. Follow the steps in order. x402 only works through the **SDK** (`browser-use-sdk` for Python, the `browse-dev` npm package for TS) — there is no `browse-dev` CLI command for it, so every step runs a short SDK script.
 
 ## How to use this script
 
@@ -24,10 +24,10 @@ This is a scripted flow. Follow the steps in order. x402 only works through the 
 
 **Ask:** (header: `Use x402`) — put the explanation and the question both in the `question` field, exactly:
 
-> x402 is a protocol from Coinbase that, instead of presenting an API key, allows you to use crypto to pay for API requests. x402 lets you pay Browser Use per request from a crypto wallet with USDC on Base — no signup, API key, or credit card needed, just a wallet. Setup takes a few minutes: get or make a wallet, add funds, save the key in `.env`, and test it.
+> x402 is a protocol from Coinbase that, instead of presenting an API key, allows you to use crypto to pay for API requests. x402 lets you pay Browse Dev per request from a crypto wallet with USDC on Base — no signup, API key, or credit card needed, just a wallet. Setup takes a few minutes: get or make a wallet, add funds, save the key in `.env`, and test it.
 >
 > How do you want to use x402?
-- **Just use it** — Run Browser Use tasks, paid from your wallet, here in terminal by asking me. I set up the wallet and key.
+- **Just use it** — Run Browse Dev tasks, paid from your wallet, here in terminal by asking me. I set up the wallet and key.
 - **Build it in** — You're coding an app and want x402 in it. I will help you install the SDK, save the key to your project's `.env`, and add code.
 
 **Do:** "Just use it" → `SETUP = A`. "Build it in" → `SETUP = B`.
@@ -36,22 +36,22 @@ This is a scripted flow. Follow the steps in order. x402 only works through the 
 
 ## Step 2 — Find the account (check before asking)
 
-**Do:** Look for an existing Browser Use API key, in this order. Don't say anything yet.
-1. `BROWSER_USE_API_KEY` in the environment
-2. a `BROWSER_USE_API_KEY=` line in `./.env`
-3. the key `browser-use login` stored (`browser-use auth status` says whether there is one)
-4. `browser-use doctor` output, if the CLI is installed
+**Do:** Look for an existing Browse Dev API key, in this order. Don't say anything yet.
+1. `BROWSE_DEV_API_KEY` in the environment
+2. a `BROWSE_DEV_API_KEY=` line in `./.env`
+3. the key `browse-dev login` stored (`browse-dev auth status` says whether there is one)
+4. `browse-dev doctor` output, if the CLI is installed
 
 **If no key is found anywhere:**
 
 **Say:**
-> No Browser Use key found, so I'll set this up accountless: the wallet is your identity, and the first payment makes a project named after it.
+> No Browse Dev key found, so I'll set this up accountless: the wallet is your identity, and the first payment makes a project named after it.
 
 **Do:** `MODE = A`. Go to Step 3.
 
 **If a key is found:**
 
-**Ask:** (header: `Account`) — question: `I found a Browser Use API key in <location>. Where should the USDC credits go?`
+**Ask:** (header: `Account`) — question: `I found a Browse Dev API key in <location>. Where should the USDC credits go?`
 - **Top up that account** — Credits go to your existing API key's project. Good if your free credits ran out, or you'd rather pay with crypto than a card.
 - **Accountless wallet** — The wallet is a separate identity. The first payment makes a fresh project named after the wallet, apart from your existing account.
 
@@ -80,7 +80,7 @@ Branch on the answer.
 
 **If "Paste it here":**
 
-**Do:** Write `BROWSER_USE_X402_PRIVATE_KEY=<pasted key>` to `.env` (create the file if needed; make sure `.env` is gitignored). Never echo the key back or print it anywhere.
+**Do:** Write `BROWSE_DEV_X402_PRIVATE_KEY=<pasted key>` to `.env` (create the file if needed; make sure `.env` is gitignored). Never echo the key back or print it anywhere.
 
 **Say:**
 > Saved your key to `.env` — I won't print it back.
@@ -92,7 +92,7 @@ Branch on the answer.
 **Say:**
 > Add this line to your `.env`, then send me your wallet's public address (the `0x…` one — safe to share):
 > ```
-> BROWSER_USE_X402_PRIVATE_KEY=<your private key>
+> BROWSE_DEV_X402_PRIVATE_KEY=<your private key>
 > ```
 
 **Do:** When they send the address, check it matches `^0x[0-9a-fA-F]{40}$`.
@@ -111,7 +111,7 @@ Branch on the answer.
 > 4. Get the private key: account menu → Account details → Show private key → enter password → copy.
 > 5. Add it to your `.env` (make sure `.env` is gitignored):
 > ```
-> BROWSER_USE_X402_PRIVATE_KEY=<your private key>
+> BROWSE_DEV_X402_PRIVATE_KEY=<your private key>
 > ```
 > 6. Send me your wallet's public address (the `0x…` one) so I can check it.
 
@@ -216,7 +216,7 @@ async def main():
     client = x402Client()
     register_exact_evm_client(
         client,
-        EthAccountSigner(Account.from_key(os.environ["BROWSER_USE_X402_PRIVATE_KEY"])),
+        EthAccountSigner(Account.from_key(os.environ["BROWSE_DEV_X402_PRIVATE_KEY"])),
     )
     # max_value caps the spend per request — picks the $1 option over the $5 default.
     async with x402HttpxClient(client, max_value=Decimal("1.5"), timeout=180.0) as http:
@@ -232,7 +232,7 @@ If `MODE = B`, add the API key header, or the $1 goes to a new wallet project in
 ```python
 async with x402HttpxClient(
     client, max_value=Decimal("1.5"), timeout=180.0,
-    headers={"X-Browser-Use-API-Key": os.environ["BROWSER_USE_API_KEY"]},
+    headers={"X-Browser-Use-API-Key": os.environ["BROWSE_DEV_API_KEY"]},
 ) as http:
     ...
 ```
@@ -247,7 +247,7 @@ import asyncio, os
 from browser_use_sdk.v3 import get_wallet_balance
 
 async def main():
-    bal = await get_wallet_balance(os.environ["BROWSER_USE_X402_PRIVATE_KEY"])
+    bal = await get_wallet_balance(os.environ["BROWSE_DEV_X402_PRIVATE_KEY"])
     print(bal['total_credits_usd'])
 
 asyncio.run(main())
@@ -255,13 +255,13 @@ asyncio.run(main())
 If `MODE = B`, skip `get_wallet_balance` (it returns 404 — the credits sit in the API key's project, that's normal, don't show it as an error) and read it the normal way:
 ```python
 from browser_use_sdk.v3 import AsyncBrowserUse
-client = AsyncBrowserUse(api_key=os.environ["BROWSER_USE_API_KEY"])
+client = AsyncBrowserUse(api_key=os.environ["BROWSE_DEV_API_KEY"])
 acct = await client.billing.account()
 print(acct.total_credits_balance_usd)
 ```
 
 **Say:**
-> Done. Your Browser Use balance is now $<balance> (the test cost about $<cost>). Tasks draw from this, and the SDK adds another $5 when it runs out.
+> Done. Your Browse Dev balance is now $<balance> (the test cost about $<cost>). Tasks draw from this, and the SDK adds another $5 when it runs out.
 
 ---
 
@@ -272,13 +272,13 @@ print(acct.total_credits_balance_usd)
 **Say:**
 > All set. Ask me to run any browser task and I'll run it through the SDK, paid from your wallet.
 
-**Do:** When they ask for a task, write a throwaway script (in `/tmp`, or a background job for long ones), run it, report the result, and delete it — don't leave files in their cwd. The SDK reads `BROWSER_USE_X402_PRIVATE_KEY` and finds the x402 endpoint on its own:
+**Do:** When they ask for a task, write a throwaway script (in `/tmp`, or a background job for long ones), run it, report the result, and delete it — don't leave files in their cwd. The SDK reads `BROWSE_DEV_X402_PRIVATE_KEY` and finds the x402 endpoint on its own:
 ```python
 import asyncio, os
 from browser_use_sdk.v3 import AsyncBrowserUse
 
 async def main():
-    client = AsyncBrowserUse()  # Mode B: AsyncBrowserUse(api_key=os.environ["BROWSER_USE_API_KEY"])
+    client = AsyncBrowserUse()  # Mode B: AsyncBrowserUse(api_key=os.environ["BROWSE_DEV_API_KEY"])
     result = await client.run(task="<the task>")
     print(result.output)
 
@@ -312,7 +312,7 @@ client = AsyncBrowserUse()                                  # Mode A (accountles
 | `get_wallet_balance(key)` | `getWalletBalance(key)` (`from "browser-use-sdk/v3"`) |
 | `pip install "browser-use-sdk[x402]"` | `npm install browser-use-sdk @x402/fetch @x402/evm viem` |
 
-Both SDKs read `BROWSER_USE_X402_PRIVATE_KEY` from the env.
+Both SDKs read `BROWSE_DEV_X402_PRIVATE_KEY` from the env.
 
 ## Rules
 
@@ -325,7 +325,7 @@ Both SDKs read `BROWSER_USE_X402_PRIVATE_KEY` from the env.
 ## Reference
 
 - x402 user docs: https://docs.browser-use.com/cloud/guides/x402
-- Claude Code + Browser Use Cloud: https://docs.browser-use.com/cloud/tutorials/integrations/claude-code
+- Claude Code + Browse Dev Cloud: https://docs.browser-use.com/cloud/tutorials/integrations/claude-code
 - x402 protocol: https://www.x402.org
 - USDC on Base contract: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 - Base RPC: https://mainnet.base.org · Basescan: https://basescan.org

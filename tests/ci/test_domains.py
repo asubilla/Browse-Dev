@@ -1,6 +1,6 @@
-"""Browser(allowed_domains=..., prohibited_domains=..., block_ip_addresses=...) (browser_use/domains.py).
+"""Browser(allowed_domains=..., prohibited_domains=..., block_ip_addresses=...) (browse_dev/domains.py).
 
-The matcher cases are ported from 0.x tests/ci/security/test_domain_filtering.py and test_ip_blocking.py (browser-use
+The matcher cases are ported from 0.x tests/ci/security/test_domain_filtering.py and test_ip_blocking.py (browse-dev
 0.x main, SecurityWatchdog._is_url_allowed). The integration tests drive a real headless Chrome, one per enforcement
 layer: the REPL helpers refuse (worker.py), the browser blocks (Guard), the cell sweep resets tabs (sweep), and an
 Agent run on Browser('chromium') wires all of them."""
@@ -15,9 +15,9 @@ import pytest
 from pydantic_ai.messages import ModelRequest, ToolReturnPart
 from websockets.sync.client import connect
 
-from browser_use import Agent, Browser
-from browser_use.domains import DomainRules, Guard, disallowed_tabs, sweep
-from browser_use.repl import Repl
+from browse_dev import Agent, Browser
+from browse_dev.domains import DomainRules, Guard, disallowed_tabs, sweep
+from browse_dev.repl import Repl
 from tests.ci.conftest import script
 
 
@@ -30,11 +30,11 @@ def test_a_prohibited_scheme_pattern_without_a_port_blocks_every_port():
 
 
 def test_the_0x_allowed_domains_env_var_raises_instead_of_being_ignored(monkeypatch):
-	"""M21: BROWSER_USE_ALLOWED_DOMAINS was silently ignored: the browser went anywhere."""
-	monkeypatch.setenv('BROWSER_USE_ALLOWED_DOMAINS', 'example.com')
-	with pytest.raises(RuntimeError, match='BROWSER_USE_ALLOWED_DOMAINS environment variable was removed'):
+	"""M21: BROWSE_DEV_ALLOWED_DOMAINS was silently ignored: the browser went anywhere."""
+	monkeypatch.setenv('BROWSE_DEV_ALLOWED_DOMAINS', 'example.com')
+	with pytest.raises(RuntimeError, match='BROWSE_DEV_ALLOWED_DOMAINS environment variable was removed'):
 		Browser('chromium')
-	monkeypatch.setenv('BROWSER_USE_ALLOWED_DOMAINS', '')
+	monkeypatch.setenv('BROWSE_DEV_ALLOWED_DOMAINS', '')
 	Browser('chromium')
 
 
@@ -334,7 +334,7 @@ def test_a_kept_tab_is_reset_once_it_navigates():
 def test_attach_mode_sweeps_only_the_agents_tabs(monkeypatch, tmp_path):
 	"""Browser('chrome'): the sweep resets the tabs the agent created (worker.py writes BU_TABS_FILE), the tab the daemon
 	is attached to, and popups they opened; never a tab you opened yourself on a site outside the list."""
-	from browser_use.browser import browser as module
+	from browse_dev.browser import browser as module
 
 	targets = {
 		'created': ('https://evil.com/1', None),
@@ -385,7 +385,7 @@ async def test_attach_mode_sweeps_a_tab_the_agent_used_and_left_in_one_cell(daem
 	disallowed page. A tab you opened (C) and the agent never touched stays as it is."""
 	from functools import partial
 
-	from browser_use.browser.browser import _daemon_cdp
+	from browse_dev.browser.browser import _daemon_cdp
 
 	cdp = partial(_daemon_cdp, daemon['BU_NAME'])
 	a, b, c = (
@@ -585,16 +585,16 @@ async def test_helpers_refuse_disallowed_urls(daemon, site, tmp_path):
 
 def test_mcp_http_get_checks_every_redirect_and_stays_local(site, monkeypatch):
 	"""NET-4: --mcp with allowed_domains checked only http_get's first URL, so a redirect from an allowed host fetched
-	any host, and with BROWSER_USE_API_KEY set the URL and headers went to the fetch-use proxy instead."""
+	any host, and with BROWSE_DEV_API_KEY set the URL and headers went to the fetch-use proxy instead."""
 	import socket
 
 	import fetch_use
 
-	from browser_use.mcp import cli_mcp
+	from browse_dev.mcp import cli_mcp
 
 	real = socket.getaddrinfo  # Windows' resolver has no *.localhost (Chrome's, used by the other site tests, does)
 	monkeypatch.setattr(socket, 'getaddrinfo', lambda h, *a, **k: real('127.0.0.1' if h.endswith('.localhost') else h, *a, **k))
-	monkeypatch.setenv('BROWSER_USE_API_KEY', 'bu_test')
+	monkeypatch.setenv('BROWSE_DEV_API_KEY', 'bu_test')
 	monkeypatch.setattr(fetch_use, 'fetch_sync', lambda *a, **k: pytest.fail('http_get went through fetch-use'))
 	mcp = cli_mcp.CLIMCPServer(own_browser=True, allowed_domains=['allowed.localhost'])
 	Site.hits.clear()
@@ -645,7 +645,7 @@ async def test_sweep_resets_tabs_left_on_a_disallowed_page(chrome, daemon, site,
 	such a page before the browser started: yours) is left alone."""
 	from functools import partial
 
-	from browser_use.browser.browser import _daemon_cdp
+	from browse_dev.browser.browser import _daemon_cdp
 
 	cdp = partial(_daemon_cdp, daemon['BU_NAME'])
 	before = {
@@ -662,7 +662,7 @@ async def test_sweep_resets_tabs_left_on_a_disallowed_page(chrome, daemon, site,
 	finally:
 		await repl.close()
 	assert notes == [
-		f'[blocked: evil.localhost is not in allowed_domains (allowed.localhost). Tab {tab[:8]} showed it; browser-use '
+		f'[blocked: evil.localhost is not in allowed_domains (allowed.localhost). Tab {tab[:8]} showed it; browse-dev '
 		'navigated that tab to about:blank]'
 	]
 	assert 'about:blank' in urls and f'{site["evil"]}/mine' in urls and f'{site["evil"]}/stay' not in urls
@@ -725,7 +725,7 @@ async def test_guard_resets_a_tab_that_commits_without_a_request_it_saw(chrome, 
 		await repl.close()
 		guard.close()
 	assert r['output'].strip() == 'about:blank'
-	assert blocks == 1 and notices[0].endswith('/committed; browser-use navigated it to about:blank]'), notices
+	assert blocks == 1 and notices[0].endswith('/committed; browse-dev navigated it to about:blank]'), notices
 
 
 def test_guard_start_failure_raises():

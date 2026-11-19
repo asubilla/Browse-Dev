@@ -1,4 +1,4 @@
-name: Test Browser Use CLI Install
+name: Test Browse Dev CLI Install
 
 on:
   push:
@@ -6,19 +6,19 @@ on:
       - main
       - v1
     paths:
-      - 'browser_use/cli.py'
-      - 'browser_use/skills/**'
-      - 'skills/browser-use/SKILL.md'
-      - 'browser_use/skills/browser-use/SKILL.md'
+      - 'browse_dev/cli.py'
+      - 'browse_dev/skills/**'
+      - 'skills/browse-dev/SKILL.md'
+      - 'browse_dev/skills/browse-dev/SKILL.md'
       - 'scripts/sync_browser_harness_skill.py'
       - 'pyproject.toml'
       - '.github/workflows/install-script.yml'
   pull_request:
     paths:
-      - 'browser_use/cli.py'
-      - 'browser_use/skills/**'
-      - 'skills/browser-use/SKILL.md'
-      - 'browser_use/skills/browser-use/SKILL.md'
+      - 'browse_dev/cli.py'
+      - 'browse_dev/skills/**'
+      - 'skills/browse-dev/SKILL.md'
+      - 'browse_dev/skills/browse-dev/SKILL.md'
       - 'scripts/sync_browser_harness_skill.py'
       - 'pyproject.toml'
       - '.github/workflows/install-script.yml'
@@ -32,15 +32,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check-browser-use-skill:
-    name: browser-use skill sync
+  check-browse-dev-skill:
+    name: browse-dev skill sync
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
 
       # Compares against SKILL.md of the browser-harness version pyproject.toml pins (installed by uv run), never harness main.
-      - name: Check generated Browser Use skill
+      - name: Check generated Browse Dev skill
         run: uv run --python 3.11 python scripts/sync_browser_harness_skill.py --check
 
   test-pip-install:
@@ -60,7 +60,7 @@ jobs:
         with:
           enable-cache: false
 
-      - name: Create venv and install browser-use
+      - name: Create venv and install browse-dev
         run: |
           uv venv .venv --python 3.11
           uv pip install --python .venv .
@@ -70,18 +70,18 @@ jobs:
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
           echo "$PWD/.venv/Scripts" >> "$GITHUB_PATH"
 
-      - name: Verify Browser Use CLI
+      - name: Verify Browse Dev CLI
         run: |
-          browser-use --help
-          browser-use auth --help
-          browser-use skill show
+          browse-dev --help
+          browse-dev auth --help
+          browse-dev skill show
 
       - name: Verify aliases
         run: |
-          browseruse --help
+          browsedev --help
 
   test-uvx-local-wheel:
-    name: uvx browser-use from local wheel
+    name: uvx browse-dev from local wheel
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -97,15 +97,15 @@ jobs:
           uv pip install build
           python -m build --wheel
 
-      - name: Verify uvx Browser Use CLI
+      - name: Verify uvx Browse Dev CLI
         run: |
           WHEEL=$(ls dist/*.whl)
-          uvx --from "$WHEEL" browser-use --help
-          uvx --from "$WHEEL" browser-use auth --help
-          uvx --from "$WHEEL" browser-use skill show
+          uvx --from "$WHEEL" browse-dev --help
+          uvx --from "$WHEEL" browse-dev auth --help
+          uvx --from "$WHEEL" browse-dev skill show
 
   test-uvx-pypi:
-    name: uvx browser-use[cli] from PyPI
+    name: uvx browse-dev[cli] from PyPI
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     steps:
@@ -113,8 +113,8 @@ jobs:
         with:
           enable-cache: false
 
-      - name: Verify uvx Browser Use CLI
+      - name: Verify uvx Browse Dev CLI
         run: |
-          uvx "browser-use[cli]" --help
-          uvx "browser-use[cli]" auth --help
-          uvx "browser-use[cli]" skill show
+          uvx "browse-dev[cli]" --help
+          uvx "browse-dev[cli]" auth --help
+          uvx "browse-dev[cli]" skill show

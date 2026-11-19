@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# This script is used to setup a local development environment for the browser-use project.
+# This script is used to setup a local development environment for the browse-dev project.
 # Usage:
 #   $ ./bin/setup.sh
 
@@ -20,11 +20,11 @@ cd "$SCRIPT_DIR"
 
 
 if [ -f "$SCRIPT_DIR/lint.sh" ]; then
-    echo "[√] already inside a cloned browser-use repo"
+    echo "[√] already inside a cloned browse-dev repo"
 else
-    echo "[+] Cloning browser-use repo into current directory: $SCRIPT_DIR"
-    git clone https://github.com/browser-use/browser-use
-    cd browser-use
+    echo "[+] Cloning browse-dev repo into current directory: $SCRIPT_DIR"
+    git clone https://github.com/asubilla/Browse-Dev
+    cd browse-dev
 fi
 
 echo "[+] Installing uv..."
@@ -38,15 +38,15 @@ echo
 echo "[+] Installing packages in venv"
 uv sync --dev --all-extras
 echo
-echo "[i] Tip: make sure to set BROWSER_USE_LOGGING_LEVEL=debug and your LLM API keys in your .env file"
+echo "[i] Tip: make sure to set BROWSE_DEV_LOGGING_LEVEL=debug and your LLM API keys in your .env file"
 echo
-uv pip show browser-use
+uv pip show browse-dev
 
 echo "Usage:"
-echo "  $ browser-use               use the CLI"
+echo "  $ browse-dev               use the CLI"
 echo "  or"
 echo "  $ source .venv/bin/activate"
 echo "  $ ipython                   use the library"
-echo "  >>> from browser_use import Agent, Browser"
+echo "  >>> from browse_dev import Agent, Browser"
 echo "  >>> await Agent(task='book me a flight to fiji', browser=Browser('chromium', headless=False)).run()"
 echo ""

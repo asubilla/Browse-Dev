@@ -1,11 +1,11 @@
-# Browser Use Cloud
+# Browse Dev Cloud
 
-Browser Use Cloud is the hosted product from Browser Use. It has two parts:
+Browse Dev Cloud is the hosted product from Browse Dev. It has two parts:
 
 - **Cloud browsers:** managed Chromium you drive over CDP with Playwright, Puppeteer, or any CDP client.
 - **Agents API:** send a task, a hosted agent does it in a cloud browser and returns the result.
 
-Browser Use Cloud is hosted only; Cloud itself is not open source. The open-source part is this repo: the [browser-use](README.md) Python library and CLI (MIT). The library runs on a cloud browser by default: `Browser()`.
+Browse Dev Cloud is hosted only; Cloud itself is not open source. The open-source part is this repo: the [browse-dev](README.md) Python library and CLI (MIT). The library runs on a cloud browser by default: `Browser()`.
 
 Current docs: [docs.browser-use.com/llms.txt](https://docs.browser-use.com/llms.txt). Current prices: [browser-use.com/pricing.md](https://browser-use.com/pricing.md).
 
@@ -25,14 +25,14 @@ Current docs: [docs.browser-use.com/llms.txt](https://docs.browser-use.com/llms.
 
 [For enterprise we offer cheaper prices; save with a commitment.](https://browser-use.com/enterprise#talk-to-sales)
 
-Stealth: on Browser Use's own [Stealth Bench V2](https://browser-use.com/benchmarks/browsers) (100 bot-protected sites, 2 visits each, September 25, 2026), Browser Use Cloud got through on 90.5% of visits, Anchor 82%, Kernel 80.5%, Browserbase 78.5%. Every provider ran with its own proxy, stealth and CAPTCHA solver on; Browserbase ran standard mode because its Verified mode needs an Enterprise plan. Caveat: the sites were picked because Browser Use Cloud historically got through where stock Chrome with a US proxy did not, so they are hard on purpose and not a balanced sample of the web or of anti-bot vendors. Runner and visit logs: [github.com/browser-use/benchmark](https://github.com/browser-use/benchmark).
+Stealth: on Browse Dev's own [Stealth Bench V2](https://browser-use.com/benchmarks/browsers) (100 bot-protected sites, 2 visits each, September 25, 2026), Browse Dev Cloud got through on 90.5% of visits, Anchor 82%, Kernel 80.5%, Browserbase 78.5%. Every provider ran with its own proxy, stealth and CAPTCHA solver on; Browserbase ran standard mode because its Verified mode needs an Enterprise plan. Caveat: the sites were picked because Browse Dev Cloud historically got through where stock Chrome with a US proxy did not, so they are hard on purpose and not a balanced sample of the web or of anti-bot vendors. Runner and visit logs: [github.com/browser-use/benchmark](https://github.com/browser-use/benchmark).
 
 ### Connect with Playwright
 
 Get an API key at [cloud.browser-use.com](https://cloud.browser-use.com/settings?tab=api-keys&new=1), then:
 
 ```bash
-export BROWSER_USE_API_KEY=your_key
+export BROWSE_DEV_API_KEY=your_key
 pip install --upgrade browser-use-sdk playwright
 ```
 
@@ -72,12 +72,12 @@ with BrowserUse() as client:
 
 ```bash
 curl https://api.browser-use.com/api/v4/runs \
-  -H "X-Browser-Use-API-Key: $BROWSER_USE_API_KEY" \
+  -H "X-Browser-Use-API-Key: $BROWSE_DEV_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"task":"Find the top Hacker News story"}'
 ```
 
-The SDK is `browser-use-sdk` on PyPI and npm (`import { BrowserUse } from "browser-use-sdk/v4"`). It is a different API from the open-source `browser-use` library. Docs: [Run a task](https://docs.browser-use.com/cloud/agent/quickstart) · [API V4 reference](https://docs.browser-use.com/cloud/api-v4-overview).
+The SDK is `browser-use-sdk` on PyPI and npm (`import { BrowserUse } from "browser-use-sdk/v4"`). It is a different API from the open-source `browse-dev` library. Docs: [Run a task](https://docs.browser-use.com/cloud/agent/quickstart) · [API V4 reference](https://docs.browser-use.com/cloud/api-v4-overview).
 
 API V2 and V3 remain available for existing integrations: [V2](https://docs.browser-use.com/cloud/api-v2-overview), [V3](https://docs.browser-use.com/cloud/api-reference).
 
@@ -86,7 +86,7 @@ API V2 and V3 remain available for existing integrations: [V2](https://docs.brow
 The MCP server runs API V3 agent sessions. `https://api.browser-use.com/v3/mcp`, authenticated with the `x-browser-use-api-key` header:
 
 ```bash
-claude mcp add -t http -H "x-browser-use-api-key: YOUR_API_KEY" browser-use https://api.browser-use.com/v3/mcp
+claude mcp add -t http -H "x-browser-use-api-key: YOUR_API_KEY" browse-dev https://api.browser-use.com/v3/mcp
 ```
 
 [MCP server docs](https://docs.browser-use.com/cloud/guides/mcp-server)

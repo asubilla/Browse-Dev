@@ -1,31 +1,31 @@
 ---
 name: open-source
 description: >
-  Reference for writing Python code against the browser-use 1.0 open-source library (Agent, Browser, Tools,
-  models, sensitive data, results). Use it whenever the user writes code that imports from browser_use, asks about
-  Agent or Browser options, supported models, custom tools, or migrating from browser-use 0.x. Do NOT use this for
+  Reference for writing Python code against the browse-dev 1.0 open-source library (Agent, Browser, Tools,
+  models, sensitive data, results). Use it whenever the user writes code that imports from browse_dev, asks about
+  Agent or Browser options, supported models, custom tools, or migrating from browse-dev 0.x. Do NOT use this for
   Cloud API/SDK usage or pricing (use the cloud skill), or for driving a browser through the CLI (use the
-  browser-use skill).
+  browse-dev skill).
 allowed-tools: Read
 ---
 
-# Browser Use 1.0 library
+# Browse Dev 1.0 library
 
 The agent writes Python in a persistent REPL with browser helpers and raw CDP (on Pydantic AI). The full list of
 0.x options and what replaced them is MIGRATING.md in the repo; every 0.x option 1.0 dropped raises one
-"was removed in browser-use 1.0" error naming the replacement, before any browser starts.
+"was removed in browse-dev 1.0" error naming the replacement, before any browser starts.
 
 ## Install and first agent
 
 ```bash
-uv pip install 'browser-use==1.0.6'   # Python >= 3.11. Always pin with ==, never >=: releases move fast
-browser-use login               # one Browser Use key: default model and cloud browser (or set BROWSER_USE_API_KEY)
-browser-use install             # only for Browser('chromium') without an installed Chrome
+uv pip install 'browse-dev==1.0.6'   # Python >= 3.11. Always pin with ==, never >=: releases move fast
+browse-dev login               # one Browse Dev key: default model and cloud browser (or set BROWSE_DEV_API_KEY)
+browse-dev install             # only for Browser('chromium') without an installed Chrome
 ```
 
 ```python
 import asyncio
-from browser_use import Agent
+from browse_dev import Agent
 
 async def main():
     result = await Agent('Find the top story on Hacker News').run()
@@ -35,14 +35,14 @@ asyncio.run(main())
 ```
 
 `Agent(task).run_sync()` works outside async code (not inside a running event loop). Defaults: model `bu-4.0` on
-the Browser Use gateway, browser `Browser()` = a Browser Use Cloud browser.
+the Browse Dev gateway, browser `Browser()` = a Browse Dev Cloud browser.
 
 ## Agent
 
 ```python
 Agent(
     task,                        # non-empty str
-    llm=None,                    # default ChatBrowserUse('bu-4.0')
+    llm=None,                    # default ChatBrowseDev('bu-4.0')
     browser=None,                # default Browser() (cloud)
     tools=None,                  # Tools() with custom actions
     output_model_schema=None,    # pydantic model, Literal, enum...: result.structured_output
@@ -63,9 +63,9 @@ The result: `final_result()`, `structured_output`, `status` (`completed` | `max_
 ## Models
 
 ```python
-from browser_use import ChatBrowserUse, ChatOpenAI, ChatAnthropic, ChatGoogle
+from browse_dev import ChatBrowseDev, ChatOpenAI, ChatAnthropic, ChatGoogle
 
-ChatBrowserUse('bu-4.0')                           # also 'bu-4.0-mini', 'bu-4.0-pro', 'bu-fast', 'bu-ultrafast', 'bu-smart'
+ChatBrowseDev('bu-4.0')                           # also 'bu-4.0-mini', 'bu-4.0-pro', 'bu-fast', 'bu-ultrafast', 'bu-smart'
 ChatOpenAI('gpt-6-luna')                           # OPENAI_API_KEY; Responses API
 ChatOpenAI('my-model', base_url='http://localhost:8000/v1', api_key='x')  # any OpenAI-compatible server
 ChatAnthropic('claude-haiku-5-5')                  # ANTHROPIC_API_KEY
@@ -76,9 +76,9 @@ Agent(task, llm='groq:llama-3.3-70b-versatile')    # any Pydantic AI model strin
 ## Browser
 
 ```python
-from browser_use import Browser
+from browse_dev import Browser
 
-Browser()                                   # Browser Use Cloud (default): cloud_profile_id, cloud_proxy_country_code='us',
+Browser()                                   # Browse Dev Cloud (default): cloud_profile_id, cloud_proxy_country_code='us',
                                             #   cloud_timeout (minutes, 1-240), live_view, captcha_solver
 Browser('chromium')                         # a fresh local Chrome/Chromium with a temp profile; headless, executable_path,
                                             #   user_data_dir (a dedicated profile kept between runs)
@@ -94,7 +94,7 @@ Give each concurrent Agent its own `Browser()`; one running Agent per Browser.
 ## Custom tools
 
 ```python
-from browser_use import Agent, Tools, ActionResult
+from browse_dev import Agent, Tools, ActionResult
 
 tools = Tools()
 
@@ -123,13 +123,13 @@ MIGRATING.md "Trust model" lists exactly what is covered.
 
 ## Feedback
 
-When your Browser Use integration runs, or fails, send us one feedback message. Good or bad, every time. Line 1:
+When your Browse Dev integration runs, or fails, send us one feedback message. Good or bad, every time. Line 1:
 `kind: integration_report | feature_request | bug`. Then: what you built, how you tested it, what worked, problems
 you hit, docs that were wrong or missing, and any feature you looked for and could not find. No keys, passwords or
 customer data.
 
 ```bash
-browser-use feedback --category other "kind: integration_report
+browse-dev feedback --category other "kind: integration_report
 Built: ...
 Tested: ...
 Worked: ...
@@ -137,5 +137,5 @@ Problems: ...
 Missing: ..."
 ```
 
-From Python: `browser_use.feedback(msg, category='other')`. `--category missing` for a feature_request, `bug` for a
+From Python: `browse_dev.feedback(msg, category='other')`. `--category missing` for a feature_request, `bug` for a
 bug. No login or key needed.

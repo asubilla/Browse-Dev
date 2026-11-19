@@ -31,7 +31,7 @@ Same package as v2, different import path:
 ```python
 # Python (async — recommended)
 from browser_use_sdk.v3 import AsyncBrowserUse
-client = AsyncBrowserUse()  # Uses BROWSER_USE_API_KEY env var
+client = AsyncBrowserUse()  # Uses BROWSE_DEV_API_KEY env var
 
 # Python (sync)
 from browser_use_sdk.v3 import BrowserUse
@@ -215,13 +215,13 @@ await client.sessions.stop(session_id, strategy="session") # destroy
 ## Error Handling
 
 ```python
-from browser_use_sdk.v3 import AsyncBrowserUse, BrowserUseError
+from browser_use_sdk.v3 import AsyncBrowserUse, BrowseDevError
 
 try:
     result = await client.run("Do something")
 except TimeoutError:
     print("Polling timed out (5 min default)")
-except BrowserUseError as e:
+except BrowseDevError as e:
     print(f"API error: {e}")
 ```
 
