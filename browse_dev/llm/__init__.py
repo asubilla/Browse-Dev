@@ -26,9 +26,9 @@ from browse_dev.auth import browse_dev_api_key, clean_api_key
 from browse_dev.utils import urlopen_keyed
 
 logger = logging.getLogger(__name__)
-GATEWAY_URL = 'https://api.browser-use.com/api/v4/llm/v1'
+GATEWAY_URL = ''  # paid gateway removed
 BILLING_URL = 'https://cloud.browser-use.com/settings?tab=billing'
-DEFAULT_MODEL = 'bu-4.0'  # BU 4.0; also bu-4.0-mini, bu-4.0-pro. bu-fast: gpt-6-luna, medium; bu-ultrafast: low, priority
+DEFAULT_MODEL = 'gpt-6-luna'  # free-fork default: your own OpenAI-compatible key or local Ollama  # BU 4.0; also bu-4.0-mini, bu-4.0-pro. bu-fast: gpt-6-luna, medium; bu-ultrafast: low, priority
 # Other bu-* models get the gpt-6-luna request profile.
 GATEWAY_UPSTREAM = {'bu-smart': 'gpt-6.1-sol', 'bu-smart-v1': 'gpt-6.1-sol'}
 LEGACY_MODEL = re.compile(r'bu-(latest|\d+-\d+)\b')  # bu-2-0, bu-1-0, bu-2-0-mini-preview, bu-latest: the 0.x gateway

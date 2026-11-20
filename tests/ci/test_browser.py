@@ -50,21 +50,27 @@ def test_default_browser_is_cloud_with_us_proxy_and_printed_live_view():
 
 
 def test_browser_kinds_and_their_0x_aliases():
-	kinds = [Browser().kind, Browser('cloud').kind, Browser('chromium').kind, Browser('chrome').kind]
-	assert kinds == ['cloud', 'cloud', 'chromium', 'chrome']
-	assert Browser(local=True).kind == Browser(use_cloud=False).kind == 'chromium'  # fresh local, as 0.x launched
-	assert Browser(cdp_url='http://x:9222').kind == 'cdp' and Browser(use_cloud=True).kind == 'cloud'
+	import pytest
+
+	kinds = [Browser().kind, Browser('chromium').kind, Browser('chrome').kind]
+	assert kinds == ['chromium', 'chromium', 'chrome']
+	assert Browser(local=True).kind == Browser(use_cloud=False).kind == 'chromium'
+	assert Browser(cdp_url='http://x:9222').kind == 'cdp'
+	with pytest.raises(ValueError, match='removed'):
+		Browser('cloud')
+	with pytest.raises(ValueError, match='removed'):
+		Browser(use_cloud=True)
 	assert Browser('chrome', profile='Work', headless=True).chrome_profile == 'Work'
 
 
 @pytest.mark.parametrize(
 	'kwargs, match',
 	[
-		({'kind': 'firefox'}, "pick 'cloud'"),
-		({'kind': 'chrome', 'local': True}, 'Pass one of'),
-		({'local': True, 'use_cloud': True}, 'Pass one of'),
-		({'kind': 'cloud', 'use_cloud': False}, 'Pass one of'),
-		({'kind': 'chromium', 'cdp_url': 'http://x:9222'}, 'Pass one of'),
+		({'kind': 'firefox'}, "pick 'chromium'"),
+		({'kind': 'chrome', 'local': True}, 'Browser\\('),
+		({'local': True, 'use_cloud': True}, 'Browser\\('),
+		({'kind': 'cloud', 'use_cloud': False}, 'Browser\\('),
+		({'kind': 'chromium', 'cdp_url': 'http://x:9222'}, 'Browser\\('),
 		({'headless': False}, r'Browser\(\) \(a cloud browser\) does not take headless='),
 		({'kind': 'chrome', 'headless': True}, "Browser\\('chromium', ...\\) launches"),
 		({'kind': 'chrome', 'executable_path': '/x'}, 'executable_path'),

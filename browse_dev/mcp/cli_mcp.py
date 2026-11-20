@@ -143,7 +143,7 @@ _cell = threading.local()  # .buffer: where the cell running on this thread prin
 _call_errors: contextvars.ContextVar[list[tuple[str, str]] | None] = contextvars.ContextVar(
 	'browse_dev_mcp_errors', default=None
 )
-TOOLS = ('browser_exec', 'browser_screenshot', 'browser_login', 'browser_feedback')
+TOOLS = ('browser_exec', 'browser_screenshot', 'browser_feedback')
 
 
 def _client_gone(e: BaseException) -> bool:
@@ -479,24 +479,6 @@ class CLIMCPServer:
 					},
 				},
 			),
-			types.Tool(
-				name='browser_login',
-				description=(
-					"Sign in to Browse Dev Cloud for cloud browsers (start_remote_daemon). Opens the user's browser "
-					'to approve; the key is stored for browse-dev and this server, never shown. '
-					'Returns once signed in, or with the URL to approve: call it again to finish.'
-				),
-				input_schema={
-					'type': 'object',
-					'properties': {
-						'force': {
-							'type': 'boolean',
-							'description': 'Sign in again even if a key is stored (the stored key was rejected)',
-							'default': False,
-						},
-					},
-				},
-			),
 			types.Tool(**feedback.MCP_TOOL),
 		]
 
@@ -554,9 +536,6 @@ class CLIMCPServer:
 					return types.CallToolResult(content=[types.TextContent(type='text', text=self._error(e))], is_error=True)
 				content: list[types.ContentBlock] = [types.ImageContent(type='image', data=png, mime_type='image/png')]
 				return types.CallToolResult(content=content)
-			if name == 'browser_login':
-				text = await asyncio.to_thread(self._sign_in, bool(arguments.get('force', False)))
-				return types.CallToolResult(content=[types.TextContent(type='text', text=text)])
 			if name == 'browser_feedback':
 				text, failed = feedback.mcp_call(arguments)
 				return types.CallToolResult(content=[types.TextContent(type='text', text=text)], is_error=failed)
@@ -618,7 +597,7 @@ class CLIMCPServer:
 			if not sys.flags.utf8_mode and locale.getpreferredencoding(False).lower().replace('-', '') != 'utf8':
 				ns['open'] = _utf8_open
 			harness_cloud.install(ns)
-			ns['start_remote_daemon'] = self._start_remote
+			# paid cloud browser helper removed from this fork
 			ns['stop_remote_daemon'] = lambda name=None: harness_cloud.stop(self._remote)
 			rules = self._browser.domains if self._browser is not None else None  # --mcp with a 0.x config's domains
 			if rules:

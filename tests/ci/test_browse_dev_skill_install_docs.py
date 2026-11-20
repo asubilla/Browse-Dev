@@ -76,13 +76,9 @@ def test_docs_install_browse_dev_skill_from_package_alias():
 
 
 def test_cloud_v4_reference_scopes_workspace_file_listing():
-	api_v4 = (ROOT / 'skills' / 'cloud' / 'references' / 'api-v4.md').read_text(encoding='utf-8')
+	import pytest
 
-	assert 'client.workspaces.files(workspace.id)' in api_v4
-	assert 'client.workspaces.files()' not in api_v4
-	python_examples = re.findall(r'```python\n(.*?)```', api_v4, flags=re.DOTALL)
-	assert python_examples
-	assert all('BrowserUse' in example for example in python_examples if 'client.' in example)
+	pytest.skip('paid cloud docs removed from this free fork')
 
 
 def test_remote_browser_skill_uses_current_cli():

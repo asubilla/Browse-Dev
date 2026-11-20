@@ -1020,6 +1020,10 @@ Commands:
   browse-dev install                 install Chromium for the library's Browser('chromium') (Playwright's build)
   browse-dev skill [show | install [--target NAME] [--path DIR] [--install-cli]]
                                       print or install the agent skill
+  browse-dev profile [list | save NAME [PATH] | use NAME | remove NAME]
+                                      manage free, local Chrome user-data-dirs
+  browse-dev human [--profile natural|fast|off] [--show] [--seed N]
+                                      human-like input, pacing and audit settings
   browse-dev feedback "what happened" [--category bug|docs|missing|other]
                                       send the Browse Dev team your integration report, bug or feature request
   browse-dev --cli-mcp               run the MCP server (browser_exec, browser_screenshot, browser_login, browser_feedback)
@@ -1091,6 +1095,14 @@ def _dispatch(args: list[str]) -> tuple[int | None, str]:
 		from browse_dev.skills.install import handle as handle_skill_command
 
 		return handle_skill_command(args[1:]), 'skill'
+	if args and args[0] == 'profile':
+		from browse_dev.profiles import handle as handle_profile_command
+
+		return handle_profile_command(args[1:]), 'profile'
+	if args and args[0] == 'human':
+		from browse_dev.human import handle as handle_human_command
+
+		return handle_human_command(args[1:]), 'human'
 	if args and args[0] == 'feedback':
 		return _run_feedback_command(args[1:]), 'feedback'
 

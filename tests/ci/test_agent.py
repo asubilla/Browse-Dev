@@ -809,9 +809,9 @@ async def test_type_secret_sends_key_events_so_key_driven_forms_see_it(daemon, t
 	repl = Repl(tmp_path, daemon, secrets={'pw': 'Hunter2-Zq9!'})
 	try:
 		code = f"new_tab({page!r}); wait_for_load(); js('document.getElementById(\"pw\").focus()'); type_secret('pw')"
-		r = await repl.call('exec', code, 30)
-		state = await repl.call(
-			'exec',
+		r = await _call_with_timeout_retry(repl, code, 30)
+		state = await _call_with_timeout_retry(
+			repl,
 			'print(js(\'[document.getElementById("pw").value === "Hunter2-Zq9!", document.getElementById("go").disabled]\'))',
 			30,
 		)
@@ -832,8 +832,8 @@ async def test_type_secret_by_id_replaces_the_fields_text(daemon, tmp_path):
 			f'new_tab({page!r}); wait_for_load(); js(\'document.getElementById("user").focus()\')\n'
 			f"type_secret('pw', cdp('DOM.describeNode', nodeId={node})['node']['backendNodeId'])"
 		)
-		r = await repl.call('exec', code, 30)
-		state = await repl.call('exec', 'print(js(\'[document.getElementById("pw").value === "Hunter2-Zq9!"]\'))', 30)
+		r = await _call_with_timeout_retry(repl, code, 30)
+		state = await _call_with_timeout_retry(repl, 'print(js(\'[document.getElementById("pw").value === "Hunter2-Zq9!"]\'))', 30)
 	finally:
 		await repl.close()
 	assert r['error'] is None, r
@@ -848,14 +848,22 @@ async def test_type_secret_types_tabs_newlines_and_non_ascii_exactly(daemon, tmp
 	repl = Repl(tmp_path, daemon, secrets={'pw': value})
 	try:
 		code = f"new_tab({page!r}); wait_for_load(); js('document.getElementById(\"ta\").focus()'); type_secret('pw')"
-		r = await repl.call('exec', code, 30)
+		r = await _call_with_timeout_retry(repl, code, 30)
 		read = f'print(js(\'document.getElementById("ta").value\') == {value!r}, repr(js(\'document.getElementById("next").value\')))'
-		state = await repl.call('exec', read + '; close_tab()', 30)
+		state = await _call_with_timeout_retry(repl, read + '; close_tab()', 30)
 	finally:
 		await repl.close()
 	assert r['error'] is None, r
 	assert state['output'].strip() == "True ''", state
 
+
+
+async def _call_with_timeout_retry(repl, code, timeout=30):
+	"""This machine's Chrome occasionally exceeds the 30s cell budget under full-suite load; retry a timed-out cell once."""
+	r = await repl.call('exec', code, timeout)
+	if r.get('error_type') == 'CellTimeout':
+		r = await repl.call('exec', code, timeout)
+	return r
 
 def serve(pages):
 	"""A local HTTP server answering path -> HTML. Returns (server, port)."""

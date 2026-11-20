@@ -696,6 +696,12 @@ def _install(ns: dict, secrets: list) -> tuple[ax.AxHelpers | None, Captcha]:
 	helpers.http_get = http_get
 	helpers.wait_for_network_idle = wait_for_network_idle  # browser-4; delete with network_idle.py at harness >= 0.1.14
 	install_page_info()  # cli-1: waits for a new document's <html>; delete with page_info.py
+	from browse_dev.liveview import install as install_live_view
+
+	install_live_view()  # free local live view: start_live_view() / stop_live_view() in a cell
+	from browse_dev.human import install as install_human
+
+	install_human()  # free human-like input, pacing, fingerprint audit and audit log helpers
 	if rules:  # before the * import below, so the agent's names are the checked ones
 		for name in ('new_tab', 'http_get'):  # new_tab: before it opens an empty tab; http_get: plain HTTP from here
 			helpers.__dict__[name] = _checked(getattr(helpers, name), check_url)

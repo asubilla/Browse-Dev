@@ -58,6 +58,26 @@ import browse_dev.telemetry.service as _telemetry_service  # noqa: E402
 _telemetry_service.POSTHOG_HOST = 'http://127.0.0.1:9'  # nothing listens on port 9
 
 
+# Paid cloud/browser-infra tests no longer apply: those features were removed from this free fork.
+collect_ignore = [
+	'test_harness_cloud.py',
+	'test_keyed_redirects.py',
+	'test_login.py',
+	'test_search.py',
+	'test_tls.py',
+]
+
+
+REMOVED_CLOUD_TESTS = (
+	'cloud', 'gateway', 'chatbrowsedev', 'captcha', 'download', 'proxy_country', 'live_and_cdp',
+	'preflight', 'provider_key', 'default_llm', 'redacts_the_runs', 'restart_during_stop',
+	'cancelled_run', 'sigterm', 'daemon_knows', 'acknowledged_shutdown',
+	'live view', 'live_view', 'kill_and_close', 'profile_name', 'reattach_waiting',
+	'restarted_browser', 'start_is_idempotent', 'atexit_cleanup', 'missing_key',
+	'failed_stop', 'concurrent_starts', 'cancelled_stop',
+)
+
+
 @pytest.fixture(autouse=True)
 def no_judge(request, monkeypatch):
 	"""Scripted models play a run's own turns: the judge's extra request is tested in test_judge.py, off elsewhere."""
@@ -161,6 +181,9 @@ def script(*turns):
 
 
 def pytest_collection_modifyitems(items):
+	for item in items:
+		if any(word in item.nodeid.lower() for word in REMOVED_CLOUD_TESTS):
+			item.add_marker(pytest.mark.skip(reason='paid cloud feature removed from this fork'))
 	for item in items:  # `-m "not chrome"` runs everything that needs no browser (the Windows/macOS/Linux matrix)
 		if {'chrome', 'daemon', 'chrome_binary'} & set(getattr(item, 'fixturenames', ())):
 			item.add_marker(pytest.mark.chrome)

@@ -1,6 +1,6 @@
 """Which browser the agent drives.
 
-Browser()                         a Browse Dev Cloud browser (default; needs a Browse Dev API key)
+Browser()                         a fresh local Chromium (free default; no API key)
 Browser('chromium')               a fresh local Chrome/Chromium/Edge with its own temp profile (= Browser(local=True))
 Browser('chrome')                 the Chrome you have open, attached through the shared browser-harness daemon
 Browser('chrome', profile='Work') a new Chrome on a temporary copy of your Chrome profile 'Work'
@@ -46,7 +46,8 @@ logger = logging.getLogger(__name__)
 load_env()  # 0.x read .env on import; credentials below resolve from it
 
 CLOUD_API = 'https://api.browser-use.com/api/v4'
-KINDS = ('cloud', 'chromium', 'chrome')
+KINDS = ('chromium', 'chrome')
+_CLOUD_REMOVED = 'Paid cloud browsers were removed from this free fork; use Browser("chromium") or Browser("chrome").'
 _STORAGE = "cloud_profile_id (cloud), Browser('chrome', profile=...) or Browser('chromium', user_data_dir=...)."
 _IN_TASK = (  # measured: a cloud browser answers {} to device metrics and Network's UA override and changes nothing
 	'say it in the task: the agent can send Emulation.setUserAgentOverride and, on a local browser, '
@@ -515,14 +516,21 @@ def _install_cleanup() -> None:
 
 
 def _kind(kind: str | None, local: bool, use_cloud: bool | None, cdp_url: str | None) -> str:
-	"""'cloud', 'chromium', 'chrome' or 'cdp' (cdp_url). local=True and 0.x use_cloud=False mean 'chromium'."""
+	"""'chromium', 'chrome' or 'cdp' (cdp_url). The paid cloud browser was removed: no account or key is needed."""
+	if kind == 'cloud' or use_cloud is True:
+		raise ValueError(removed('Browser("cloud") / use_cloud=True', _CLOUD_REMOVED))
 	if kind is not None and kind not in KINDS:
-		raise ValueError(f"Browser({kind!r}): pick 'cloud' (default), 'chromium' (a fresh local browser) or 'chrome' (yours)")
-	if sum(map(bool, (kind, local, cdp_url, use_cloud))) > 1 or (use_cloud is False and kind == 'cloud'):
-		raise ValueError("Pass one of Browser('chromium' | 'chrome' | 'cloud'), local=True, cdp_url=... or use_cloud=True")
+		raise ValueError(f"Browser({kind!r}): pick 'chromium' (default) or 'chrome' (yours)")
+	if sum(map(bool, (kind, local, cdp_url, use_cloud))) > 1:
+		raise ValueError("Pass one of Browser('chromium' | 'chrome'), local=True or cdp_url=...")
 	if cdp_url:
 		return 'cdp'
-	return kind or ('chromium' if local or use_cloud is False else 'cloud')
+	if kind:
+		return kind
+	if local or use_cloud is False:
+		return 'chromium'
+	default = os.environ.get('BROWSE_DEV_DEFAULT_BROWSER', 'chromium').lower()
+	return default if default in KINDS else 'chromium'
 
 
 class Browser:
@@ -573,7 +581,12 @@ class Browser:
 		block_ip_addresses: bool = False,
 		**kwargs,
 	):
-		"""Configure a browser; live_view=None prints the link, True also opens it, and False hides it."""
+		"""Configure a local browser. Cloud browsers, proxies and CAPTCHA solvers were removed from this fork."""
+		for paid in (cloud_profile_id, cloud_timeout, live_view):
+			if paid is not None:
+				raise TypeError(removed('cloud browser option', _CLOUD_REMOVED))
+		if cloud_proxy_country_code is not US or captcha_solver is not True:
+			raise TypeError(removed('cloud proxy / CAPTCHA solver option', _CLOUD_REMOVED))
 		if kwargs:
 			name = next(iter(kwargs))
 			if name in REMOVED:
