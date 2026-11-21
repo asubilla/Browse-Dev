@@ -702,6 +702,12 @@ def _install(ns: dict, secrets: list) -> tuple[ax.AxHelpers | None, Captcha]:
 	from browse_dev.human import install as install_human
 
 	install_human()  # free human-like input, pacing, fingerprint audit and audit log helpers
+	from browse_dev.handoff import install as install_handoff
+
+	install_handoff()  # free handoff to a human for login/2FA/captcha/payment: handoff() / handoff_cancel()
+	from browse_dev.selectors import install as install_selectors
+
+	install_selectors()  # free self-healing selectors: selector() / resolve() / click() / fill() / record()
 	if rules:  # before the * import below, so the agent's names are the checked ones
 		for name in ('new_tab', 'http_get'):  # new_tab: before it opens an empty tab; http_get: plain HTTP from here
 			helpers.__dict__[name] = _checked(getattr(helpers, name), check_url)

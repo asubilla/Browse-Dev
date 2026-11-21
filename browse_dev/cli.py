@@ -849,6 +849,63 @@ def _run_browser_harness(code: str | None = None) -> int | None:
 	return None
 
 
+_HANDOFF_HELP = """browse-dev handoff "message" [--timeout N] — pause while a human does login/2FA/captcha/payment
+
+  browse-dev handoff "Please log in and click Continue" --timeout 300
+
+Shows a card in the attached browser tab with your message and Continue / Cancel buttons. The command waits for the
+human in that same real browser and prints {'outcome': ..., 'note': ...}. The agent never solves the challenge or
+types into password/OTP fields; the human does it. Default timeout is 600 seconds."""
+
+
+def _run_handoff_command(argv: list[str]) -> int:
+	"""`browse-dev handoff "message" [--timeout N]`: piped code calling handoff() via _run_browser_harness."""
+	import json
+
+	timeout = 600.0
+	message_parts: list[str] = []
+	i = 0
+	while i < len(argv):
+		arg = argv[i]
+		if arg in ('-h', '--help'):
+			print(_HANDOFF_HELP)
+			return 0
+		if arg in ('--timeout', '-t') and i + 1 < len(argv):
+			try:
+				timeout = float(argv[i + 1])
+			except ValueError:
+				print('--timeout needs a number of seconds', file=sys.stderr)
+				return 2
+			i += 2
+			continue
+		if arg.startswith('--timeout='):
+			try:
+				timeout = float(arg.split('=', 1)[1])
+			except ValueError:
+				print('--timeout needs a number of seconds', file=sys.stderr)
+				return 2
+			i += 1
+			continue
+		message_parts.append(arg)
+		i += 1
+	message = ' '.join(message_parts).strip()
+	if not message:
+		print(_HANDOFF_HELP, file=sys.stderr)
+		return 2
+	if timeout < 0:
+		print('--timeout must be non-negative', file=sys.stderr)
+		return 2
+	code = (
+		'from browse_dev.handoff import handoff\n'
+		f'print(handoff({json.dumps(message)}, timeout_seconds={timeout!r}))\n'
+	)
+	# run.main() only reads piped code when no subcommand args are present; keep the program name so it does.
+	sys.argv = [sys.argv[0]]
+	sys.stdin = StringIO(code)
+	_run_browser_harness(code)
+	return 0
+
+
 _AGENT_HINT = (
 	'# the CLI runs Python, not agent tasks; run an agent with the library, in Python:\n'
 	"  from browse_dev import Agent\n  print(Agent('<task>').run_sync().final_result())"
@@ -1023,10 +1080,14 @@ Commands:
   browse-dev profile [list | save NAME [PATH] | use NAME | remove NAME]
                                       manage free, local Chrome user-data-dirs
   browse-dev human [--profile natural|fast|off] [--show] [--seed N]
+  browse-dev trace [--show | --timeline | --otlp] [TRACE_ID] [--out PATH]
+                                      inspect spans and write a local HTML timeline
                                       human-like input, pacing and audit settings
   browse-dev feedback "what happened" [--category bug|docs|missing|other]
                                       send the Browse Dev team your integration report, bug or feature request
-  browse-dev --cli-mcp               run the MCP server (browser_exec, browser_screenshot, browser_login, browser_feedback)
+  browse-dev handoff "message" [--timeout N]
+                                      pause while a human does login/2FA/captcha/payment in the browser
+  browse-dev --cli-mcp               run the MCP server (browser_exec, browser_screenshot, browser_handoff, browser_feedback)
   browse-dev --version               print the versions
 Update: uv tool install browse-dev@latest (or pip install -U browse-dev). A call that cannot reach a browser asks
 PyPI (once a day) for a newer version and names it; BROWSE_DEV_NO_UPDATE_CHECK=1 turns that off.
@@ -1070,6 +1131,54 @@ def _stdin_is_terminal() -> bool:
 	return bool(ctypes.windll.kernel32.GetConsoleMode(console, ctypes.byref(ctypes.c_ulong())))
 
 
+
+def _run_trace_command(args: list[str]) -> int:
+	"""Inspect recorded traces and write a local HTML timeline (no cloud, no dependencies)."""
+	import sys
+
+	from browse_dev import tracing
+
+	trace_id = None
+	action = 'show'
+	output = None
+	i = 0
+	while i < len(args):
+		arg = args[i]
+		if arg in ('--show', '--timeline', '--otlp'):
+			action = arg[2:]
+			i += 1
+		elif arg in ('--out', '-o') and i + 1 < len(args):
+			output = args[i + 1]
+			i += 2
+		elif arg == '--help' or arg == '-h':
+			print(
+				'browse-dev trace [--show | --timeline | --otlp] [TRACE_ID] [--out PATH]',
+				file=sys.stderr,
+			)
+			return 0
+		elif not arg.startswith('--') and trace_id is None:
+			trace_id = arg
+			i += 1
+		else:
+			print(f'Unknown trace argument {arg!r}', file=sys.stderr)
+			return 2
+	data = tracing.export(trace_id)
+	if not data or not data.get('spans'):
+		print('No traces recorded yet. Run an agent, or check the trace id.', file=sys.stderr)
+		return 1
+	if action == 'timeline':
+		path = tracing.write_timeline(data['trace_id'], output or f'{data["trace_id"][:12]}-timeline.html')
+		print(path)
+	elif action == 'otlp':
+		import json
+
+		print(json.dumps(tracing.export_otlp_json(data['trace_id']), indent=2))
+	else:
+		import json
+
+		print(json.dumps(data, indent=2))
+	return 0
+
 def _dispatch(args: list[str]) -> tuple[int | None, str]:
 	if args in (['--help'], ['-h'], ['help']):  # browser-harness's own help named its commands and flags, not ours
 		print(HELP)
@@ -1105,6 +1214,10 @@ def _dispatch(args: list[str]) -> tuple[int | None, str]:
 		return handle_human_command(args[1:]), 'human'
 	if args and args[0] == 'feedback':
 		return _run_feedback_command(args[1:]), 'feedback'
+	if args and args[0] == 'trace':
+		return _run_trace_command(args[1:]), 'trace'
+	if args and args[0] == 'handoff':
+		return _run_handoff_command(args[1:]), 'handoff'
 
 	legacy = _legacy_command(args)
 	if legacy is not None:

@@ -7,7 +7,12 @@ A browser agent on Pydantic AI: the model writes Python against raw CDP in one p
 **Free-first fork:** `Browser()` is a local Chromium — no account or API key needed. Attach your signed-in Chrome with
 `Browser('chrome')`, reuse logins with `browse-dev profile save/use`, and watch a tab with `start_live_view()` in a cell
 (http://127.0.0.1:8765/). Free QA helpers: `browse-dev human --profile natural` for human-like typing/mouse/scroll,
-`pace(origin)`, `fingerprint_audit()` and a local JSONL audit log. Paid cloud/browser-infra features were removed. 
+`pace(origin)`, `fingerprint_audit()` and a local JSONL audit log. Paid cloud/browser-infra features were removed.
+
+**Reliability & observability:** `selector(css=..., xpath=..., role=..., name=...)` gives self-healing locators —
+`resolve()`, `click()` and `fill()` try each strategy in order and report which one worked. `handoff(message)` pauses a
+run so a human can finish login/2FA/captcha/payment in the real tab (the agent never solves it). Every REPL cell is
+traced as a span: `browse-dev trace --show`, `--timeline` (writes a standalone HTML file) and `--otlp` export the run.
 
 ```
   ● task: "book the earliest driving test"
@@ -132,6 +137,22 @@ Other models: `ChatAnthropic`, `ChatGoogle` (both built in), or any Pydantic AI 
 - **Highlights:** orange corner brackets show for 1 s around what the agent clicks or types into, never in its own screenshots; `Agent(task, highlight_actions=False)` turns them off.
 - **Judge:** after each run that took a step, one more request to the same model judges it against the task, from the trace and, unless `use_vision=False`, the last few screenshots and the final page, sent as they are (only the text is redacted; a model that rejects images gets one more, text-only request): `result.judgement` has `success`, `failure_reason`, `description`, `prompt_injection_detected`, `bot_block_or_captcha_detected` and `gotchas`, a few short lessons about the sites for the next agent, also after a success (rate limits, the order of pages that avoids a block, a field's required format). Its tokens and cost are counted in `result.usage` and `result.cost_usd`. `Agent(task, judge_context='the answer is 42')` gives it your criteria; `Agent(task, judge=False)` turns it off. With usage stats on, the judgement is sent with the run's event, scrubbed like the result (no emails, secrets or credentials).
 - **Web search:** the agent gets `search(query, num_results=None, category=None)` (Browse Dev web search, billed per search to your Browse Dev key; each charge the response reports is added to `result.cost_usd`) with `Agent(task, web_search=True)` (off by default; needs a Browse Dev key, and can't be combined with `allowed_domains`).
+
+## Human handoff
+
+For steps the agent must not do itself — login, 2FA, a captcha or a payment — hand control to the human in the same
+real browser. In a cell:
+
+```python
+result = handoff("Please log in to example.com and finish 2FA, then click Continue", timeout_seconds=300)
+print(result)  # {'outcome': 'continued', 'note': None}  (or 'cancelled' / 'timeout' / 'closed')
+```
+
+A card with your message and Continue / Cancel buttons appears in the attached tab; the cell blocks until a button is
+clicked or the timeout. Browse Dev never reads or solves the challenge and never types into password/OTP fields.
+From a terminal: `browse-dev handoff "message" --timeout 300`. For MCP clients, point the config at the
+`browse-dev --cli-mcp` server and allow its `browser_handoff` tool (it is listed automatically), then call it with a
+clear `message` instead of trying to click through a login or captcha yourself.
 
 <br/>
 

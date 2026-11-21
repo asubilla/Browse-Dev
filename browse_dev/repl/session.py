@@ -461,7 +461,14 @@ class Repl:
 		if self._lock_loop is not (loop := asyncio.get_running_loop()):  # reused from a new loop (asyncio.run per run)
 			self.lock, self._lock_loop = asyncio.Lock(), loop
 		async with self.lock:
-			r = await self._call(op, code, timeout)
+			if op == 'exec':  # local run timeline: each cell is a span (lazy import keeps startup unchanged)
+				from browse_dev import tracing
+				with tracing.tracer.span('repl.exec', op=op, code_length=len(code)) as trace_span:
+					r = await self._call(op, code, timeout)
+					if r.get('error'):
+						trace_span.status = 'error'
+			else:
+				r = await self._call(op, code, timeout)
 			if r.get('error_type') == 'BrowserConnectionLost' and self.reattach is not None:
 				try:
 					env = await self.reattach()

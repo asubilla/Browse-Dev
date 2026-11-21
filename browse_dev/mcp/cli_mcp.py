@@ -7,6 +7,7 @@ import base64
 import contextvars
 import errno
 import functools
+import json
 import locale
 import os
 import shutil
@@ -143,7 +144,7 @@ _cell = threading.local()  # .buffer: where the cell running on this thread prin
 _call_errors: contextvars.ContextVar[list[tuple[str, str]] | None] = contextvars.ContextVar(
 	'browse_dev_mcp_errors', default=None
 )
-TOOLS = ('browser_exec', 'browser_screenshot', 'browser_feedback')
+TOOLS = ('browser_exec', 'browser_screenshot', 'browser_handoff', 'browser_feedback')
 
 
 def _client_gone(e: BaseException) -> bool:
@@ -479,6 +480,26 @@ class CLIMCPServer:
 					},
 				},
 			),
+			types.Tool(
+				name='browser_handoff',
+				description=(
+					'Ask the human to do login/2FA/captcha/payment in the real browser and wait for them to finish. '
+					'NEVER solve it yourself: do not type passwords, OTP codes or captcha answers, and do not click '
+					'through the challenge. Show the card with a clear message, then continue from its outcome.'
+				),
+				input_schema={
+					'type': 'object',
+					'properties': {
+						'message': {'type': 'string', 'description': 'What the human must do in the browser'},
+						'timeout_seconds': {
+							'type': 'number',
+							'description': 'Seconds to wait for the human (default 600)',
+							'default': 600,
+						},
+					},
+					'required': ['message'],
+				},
+			),
 			types.Tool(**feedback.MCP_TOOL),
 		]
 
@@ -536,6 +557,25 @@ class CLIMCPServer:
 					return types.CallToolResult(content=[types.TextContent(type='text', text=self._error(e))], is_error=True)
 				content: list[types.ContentBlock] = [types.ImageContent(type='image', data=png, mime_type='image/png')]
 				return types.CallToolResult(content=content)
+			if name == 'browser_handoff':
+				message = arguments.get('message')
+				if not isinstance(message, str) or not message.strip():
+					return types.CallToolResult(
+						content=[types.TextContent(type='text', text="Error: 'message' must be a non-empty string")],
+						is_error=True,
+					)
+				timeout = arguments.get('timeout_seconds', 600)
+				if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout < 0:
+					return types.CallToolResult(
+						content=[types.TextContent(type='text', text="Error: 'timeout_seconds' must be a non-negative number")],
+						is_error=True,
+					)
+				try:
+					result = await self._locked(self._handoff, message, float(timeout))
+				except Exception as e:  # a tool result the model reads, never a JSON-RPC error
+					_error_class(e)
+					return types.CallToolResult(content=[types.TextContent(type='text', text=self._error(e))], is_error=True)
+				return types.CallToolResult(content=[types.TextContent(type='text', text=json.dumps(result))])
 			if name == 'browser_feedback':
 				text, failed = feedback.mcp_call(arguments)
 				return types.CallToolResult(content=[types.TextContent(type='text', text=text)], is_error=failed)
@@ -547,6 +587,7 @@ class CLIMCPServer:
 
 		self.server.add_request_handler('tools/list', types.PaginatedRequestParams, handle_list_tools)
 		self.server.add_request_handler('tools/call', types.CallToolRequestParams, handle_call_tool)
+		self._call_tool = call_tool  # also callable directly, e.g. by tests, without the stdio transport
 
 	def _record_call(self, name: str, result: types.CallToolResult | None, errors: list[tuple[str, str]], seconds: float) -> None:
 		"""One mcp_server_event per tool call: queued, sent by the telemetry thread; never fails a call."""
@@ -822,6 +863,13 @@ class CLIMCPServer:
 		if login.error:
 			return f'Browse Dev Cloud login failed: {login.error}. Call browser_login to try again.'
 		return f'Signed in to Browse Dev Cloud. {LOGIN_NEXT}'
+
+	def _handoff(self, message: str, timeout_seconds: float) -> dict[str, Any]:
+		"""Show the handoff card in the attached tab and wait for the human (runs on a _locked worker thread)."""
+		from browse_dev.handoff import handoff
+
+		self._attach()  # helpers.cdp/js need a daemon; the first tool call must attach it
+		return handoff(message, timeout_seconds=timeout_seconds)
 
 	def _screenshot(self, full: bool, max_dim: int | None) -> str:
 		buffer = StringIO()
